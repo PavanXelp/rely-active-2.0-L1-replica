@@ -21,6 +21,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { apiClient } from '@/lib/api/client'
+import { ENDPOINTS } from '@/lib/api/endpoints'
 import { toast } from 'sonner'
 
 export interface ResidentTicket {
@@ -93,7 +94,7 @@ export default function TicketsPage() {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const res = await apiClient.get('/mobile/l1/tickets/departments')
+        const res = await apiClient.get(ENDPOINTS.tickets.departments)
         if (res.data?.data && Array.isArray(res.data.data) && res.data.data.length > 0) {
           setApiDepartments(res.data.data)
         }
@@ -110,7 +111,7 @@ export default function TicketsPage() {
     const fetchResidentTickets = async () => {
       setIsLoading(true)
       try {
-        const res = await apiClient.get('/mobile/l1/tickets')
+        const res = await apiClient.get(ENDPOINTS.tickets.list)
         if (res.data?.data && Array.isArray(res.data.data)) {
           setTickets(res.data.data)
         }
@@ -156,7 +157,7 @@ export default function TicketsPage() {
     const activeJobCatObj = activeDeptObj?.jobCategories.find((j) => j.name === category)
 
     try {
-      const res = await apiClient.post('/mobile/l1/tickets', {
+      const res = await apiClient.post(ENDPOINTS.tickets.create, {
         areaType,
         departmentId: activeDeptObj?.id || null,
         department,
@@ -214,7 +215,7 @@ export default function TicketsPage() {
         ? `Custom: ${new Date(customDeadline).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`
         : selectedTatPreset
 
-      await apiClient.patch(`/mobile/l1/tickets/${selectedTicket.id}/tat`, {
+      await apiClient.patch(ENDPOINTS.tickets.updateTat(selectedTicket.id), {
         tatOption: displayTat,
         customTatDeadline: customDeadline,
       })
@@ -251,7 +252,7 @@ export default function TicketsPage() {
 
     try {
       setIsEscalating(true)
-      await apiClient.patch(`/mobile/l1/tickets/${selectedTicket.id}/escalate`, {
+      await apiClient.patch(ENDPOINTS.tickets.escalate(selectedTicket.id), {
         reason: escalationReason.trim(),
         priority: escalationPriority,
       })

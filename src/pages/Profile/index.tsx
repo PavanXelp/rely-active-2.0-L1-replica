@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { api } from '@/lib/api'
+import { ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore, type ResidentUser } from '@/lib/stores/auth-store'
 import { toast } from 'sonner'
 
@@ -112,7 +113,7 @@ export default function ProfilePage() {
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await api.get('/mobile/l1/resident/auth/profile')
+      const res = await api.get(ENDPOINTS.auth.profile)
       if (res.data?.success && res.data?.data) {
         setProfile(res.data.data)
       } else {

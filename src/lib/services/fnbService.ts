@@ -1,4 +1,5 @@
 import { api } from '../api'
+import { ENDPOINTS } from '../api/endpoints'
 import type {
   FnbMenuResponse,
   FnbOrderHistoryItem,
@@ -9,22 +10,22 @@ import type {
 
 export const fnbMobileService = {
   getDailyMenu: async (dateStr: string): Promise<FnbMenuResponse | null> => {
-    const res = await api.get(`/mobile/l1/fnb/menu?date=${dateStr}`)
+    const res = await api.get(ENDPOINTS.fnb.dailyMenu(dateStr))
     return res.data?.data || null
   },
 
   getSpecialMenu: async (): Promise<FnbPropertySpecialSlotInfo[]> => {
-    const res = await api.get('/mobile/l1/fnb/special-menu')
+    const res = await api.get(ENDPOINTS.fnb.specialMenu)
     return res.data?.data || []
   },
 
   placeOrder: async (payload: FnbResidentOrderPayload): Promise<FnbPlaceOrderResult> => {
-    const res = await api.post('/mobile/l1/fnb/order', payload)
+    const res = await api.post(ENDPOINTS.fnb.placeOrder, payload)
     return res.data
   },
 
   getOrderHistory: async (): Promise<FnbOrderHistoryItem[]> => {
-    const res = await api.get('/mobile/l1/fnb/orders')
+    const res = await api.get(ENDPOINTS.fnb.orderHistory)
     return res.data?.data || []
   },
 }

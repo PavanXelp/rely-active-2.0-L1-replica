@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { api } from '@/lib/api'
+import { ENDPOINTS } from '@/lib/api/endpoints'
 import { toast } from 'sonner'
 
 export default function Login() {
@@ -24,7 +25,7 @@ export default function Login() {
 
     try {
       setLoading(true)
-      const res = await api.post('/mobile/l1/resident/auth/login', {
+      const res = await api.post(ENDPOINTS.auth.login, {
         username: username.trim(),
         password,
       })
