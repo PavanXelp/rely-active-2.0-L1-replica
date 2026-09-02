@@ -24,7 +24,7 @@ export default function Login() {
 
     try {
       setLoading(true)
-      const res = await api.post('/mobile/resident/auth/login', {
+      const res = await api.post('/mobile/l1/resident/auth/login', {
         username: username.trim(),
         password,
       })
