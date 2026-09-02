@@ -163,7 +163,7 @@ export default function Dashboard() {
 
         {/* 2. Tickets (Helpdesk & Maintenance) Card */}
         <Card
-          onClick={() => setTicketModalOpen(true)}
+          onClick={() => navigate('/tickets')}
           className="rounded-3xl border border-amber-200 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-amber-400 transition-all cursor-pointer group"
         >
           <CardContent className="p-4 space-y-2.5">
