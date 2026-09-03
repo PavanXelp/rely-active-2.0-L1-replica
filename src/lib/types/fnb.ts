@@ -7,21 +7,55 @@ export interface FnbDishObj {
   id: string
   name: string
   category?: string
-  dietaryType?: FnbDietaryType
+  dietaryType?: FnbDietaryType | string
+  price?: number
   basePrice?: number
-  imageUrl?: string
   description?: string
+  imageUrl?: string
+  photoUrl?: string
+  image_url?: string
+  photo_url?: string
+}
+
+export interface FnbMenuItem {
+  id?: string
+  menuItemId?: string
+  dishId?: string
+  name?: string
+  category?: string
+  dietaryType?: string
+  description?: string
+  imageUrl?: string
+  mealSlot?: string
+  mealSlotId?: string
+  isOptional?: boolean
+  notes?: string
+  price?: number
+  standardPrice?: number
+  extraPrice?: number
+  basePrice?: number
+  effectivePrice?: number
+  isPackageCovered?: boolean
+  dish?: FnbDishObj
 }
 
 export interface FnbPropertyMealSlotInfo {
   id: string
   globalMealSlotId?: string
-  name: string
+  name?: string
   slotKey?: string
-  startTime: string
-  endTime: string
+  startTime?: string
+  endTime?: string
   price?: number
   isIncludedInPackage?: boolean
+  globalMealSlot?: {
+    id?: string
+    name?: string
+    startTime?: string
+    endTime?: string
+    price?: number
+    description?: string
+  }
 }
 
 export interface FnbPropertySpecialSlotDishInfo {
@@ -51,20 +85,43 @@ export interface FnbModalSlotDish {
   isPackageCovered: boolean
   standardPrice?: number
   extraPrice?: number
+  basePrice?: number
   effectivePrice?: number
   dish?: FnbDishObj
 }
 
 export interface FnbMenuResponse {
   date: string
+  locationId?: string
   dayOfWeek?: string
   hasActivePackage?: boolean
   activePackage?: {
     id?: string
     packageName?: string
+    name?: string
+    includedMealSlots?: string[]
     includedSlots?: string[]
-  }
+    price?: number
+  } | null
+  packageSubscription?: {
+    packageName?: string
+    name?: string
+    includedMealSlots?: string[]
+    includedSlots?: string[]
+    price?: number
+  } | null
+  residentPackage?: unknown | null
+  foodPackage?: unknown | null
+  subscription?: {
+    packageName?: string
+    name?: string
+    includedMealSlots?: string[]
+    includedSlots?: string[]
+    price?: number
+  } | null
   propertyMealSlots?: FnbPropertyMealSlotInfo[]
+  menuItems?: FnbMenuItem[]
+  menu?: Record<string, FnbMenuItem[] | undefined>
   itemsBySlot?: Record<string, FnbModalSlotDish[]>
 }
 
@@ -82,7 +139,9 @@ export interface FnbResidentOrderPayload {
     menuItemId?: string
     specialMealSlotDishId?: string
     quantity: number
+    unitPrice?: number
   }>
+  totalAmount?: number
 }
 
 export interface FnbPlaceOrderResult {

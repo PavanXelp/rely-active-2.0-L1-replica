@@ -19,100 +19,20 @@ import { Badge } from '@/components/ui/badge'
 import { fnbMobileService } from '@/lib/services/fnbService'
 import { getFileUrl } from '@/lib/utils'
 import { useAuthStore } from '@/lib/stores/auth-store'
-import type { FnbOrderHistoryItem, FnbResidentOrderPayload } from '@/lib/types/fnb'
+import type {
+  FnbDishObj,
+  FnbMenuItem,
+  FnbMenuResponse,
+  FnbOrderHistoryItem,
+  FnbPropertySpecialSlotInfo,
+  FnbResidentOrderPayload,
+} from '@/lib/types/fnb'
 import { toast } from 'sonner'
 
-interface DishObj {
-  id: string
-  name: string
-  category?: string
-  dietaryType?: string
-  basePrice?: number
-  description?: string
-  imageUrl?: string
-  photoUrl?: string
-  image_url?: string
-  photo_url?: string
-}
-
-interface MenuItem {
-  id?: string
-  menuItemId?: string
-  dishId: string
-  name?: string
-  category?: string
-  dietaryType?: string
-  description?: string
-  imageUrl?: string
-  mealSlot?: string
-  mealSlotId?: string
-  isOptional?: boolean
-  notes?: string
-  standardPrice?: number
-  extraPrice?: number
-  effectivePrice?: number
-  isPackageCovered?: boolean
-  dish?: DishObj
-}
-
-interface PropertyMealSlotInfo {
-  id: string
-  globalMealSlotId?: string
-  name: string
-  slotKey?: string
-  startTime: string
-  endTime: string
-  price?: number
-  isIncludedInPackage?: boolean
-}
-
-interface PropertySpecialSlotDishInfo {
-  id: string
-  propertySpecialSlotId: string
-  dishId: string
-  price: number
-  dish?: DishObj
-}
-
-interface PropertySpecialSlotInfo {
-  id: string
-  globalSpecialSlotId: string
-  name: string
-  description?: string
-  price?: number | string
-  specialDishes?: PropertySpecialSlotDishInfo[]
-}
-
-interface MenuResponse {
-  date: string
-  dayOfWeek?: string
-  hasActivePackage?: boolean
-  activePackage?: {
-    id?: string
-    packageName?: string
-    name?: string
-    includedMealSlots?: string[]
-    includedSlots?: string[]
-    price?: number
-  } | null
-  packageSubscription?: {
-    packageName?: string
-    name?: string
-    includedMealSlots?: string[]
-    includedSlots?: string[]
-    price?: number
-  } | null
-  subscription?: {
-    packageName?: string
-    name?: string
-    includedMealSlots?: string[]
-    includedSlots?: string[]
-    price?: number
-  } | null
-  propertyMealSlots?: PropertyMealSlotInfo[]
-  menuItems?: MenuItem[]
-  menu?: Record<string, MenuItem[] | undefined>
-}
+type DishObj = FnbDishObj
+type MenuItem = FnbMenuItem
+type PropertySpecialSlotInfo = FnbPropertySpecialSlotInfo
+type MenuResponse = FnbMenuResponse
 
 const getDishImageUrl = (dishObj?: DishObj | Record<string, unknown> | null): string | null => {
   if (!dishObj) return null
@@ -195,7 +115,9 @@ export default function FnbPage() {
     ): boolean => {
       if (itemSlotId && menuData?.propertyMealSlots) {
         const pSlot = menuData.propertyMealSlots.find(
-          (s) => (s.slotKey && s.slotKey === activeSlotKey) || exactSlotMatch(s.name, activeSlotKey),
+          (s) =>
+            (s.slotKey && s.slotKey === activeSlotKey) ||
+            exactSlotMatch(s.name || s.globalMealSlot?.name, activeSlotKey),
         )
         if (pSlot && (itemSlotId === pSlot.id || itemSlotId === pSlot.globalMealSlotId)) {
           return true
@@ -211,7 +133,7 @@ export default function FnbPage() {
       if (!menuData?.hasActivePackage && !activePackage) return false
 
       const pSlot = menuData?.propertyMealSlots?.find(
-        (s) => (s.slotKey && s.slotKey === slotKey) || exactSlotMatch(s.name, slotKey),
+        (s) => (s.slotKey && s.slotKey === slotKey) || exactSlotMatch(s.name || s.globalMealSlot?.name, slotKey),
       )
       if (pSlot && pSlot.isIncludedInPackage !== undefined) {
         return Boolean(pSlot.isIncludedInPackage)
@@ -222,7 +144,7 @@ export default function FnbPage() {
           return true
         }
         const matchedSlot = menuData?.propertyMealSlots?.find((s) => s.globalMealSlotId === inc || s.id === inc)
-        const slotName = matchedSlot?.name || inc
+        const slotName = matchedSlot?.name || matchedSlot?.globalMealSlot?.name || inc
         return exactSlotMatch(slotName, slotKey)
       })
     },
@@ -240,9 +162,10 @@ export default function FnbPage() {
     let slotsList = []
     if (menuData?.propertyMealSlots && menuData.propertyMealSlots.length > 0) {
       slotsList = menuData.propertyMealSlots.map((ps) => {
-        const slotKey = ps.slotKey || ps.name.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        const slotName = ps.name || ps.globalMealSlot?.name || 'Meal Slot'
+        const slotKey = ps.slotKey || slotName.toLowerCase().replace(/[^a-z0-9]/g, '_')
         let icon = '🍽️'
-        const lowerName = ps.name.toLowerCase()
+        const lowerName = slotName.toLowerCase()
         if (lowerName.includes('break')) icon = '🌅'
         else if (lowerName.includes('lunch')) icon = '☀️'
         else if (lowerName.includes('snack') && !lowerName.includes('night') && !lowerName.includes('mid')) icon = '🍿'
@@ -252,9 +175,9 @@ export default function FnbPage() {
 
         return {
           key: slotKey,
-          label: ps.name,
-          startTime: ps.startTime || '00:00',
-          endTime: ps.endTime || '00:00',
+          label: slotName,
+          startTime: ps.startTime || ps.globalMealSlot?.startTime || '00:00',
+          endTime: ps.endTime || ps.globalMealSlot?.endTime || '00:00',
           icon,
           id: ps.id,
           globalMealSlotId: ps.globalMealSlotId,
@@ -344,6 +267,35 @@ export default function FnbPage() {
           if (specialSlots && specialSlots.length > 0) {
             setSelectedSpecialSlotId((prev) => (prev ? prev : specialSlots[0].id))
           }
+
+          // Auto-select first slot containing dishes if active slot has no dishes
+          if (dailyData?.menu) {
+            const menuObj = dailyData.menu
+            const keys = Object.keys(menuObj)
+            const activeNorm = activeSlot.toLowerCase().replace(/[^a-z0-9]/g, '')
+            const activeHasDishes = keys.some((k) => {
+              const kNorm = k.toLowerCase().replace(/[^a-z0-9]/g, '')
+              return (
+                (kNorm === activeNorm || kNorm.includes(activeNorm) || activeNorm.includes(kNorm)) &&
+                Array.isArray(menuObj[k]) &&
+                menuObj[k].length > 0
+              )
+            })
+
+            if (!activeHasDishes) {
+              const slotWithDishesKey = keys.find((k) => Array.isArray(menuObj[k]) && menuObj[k].length > 0)
+              if (slotWithDishesKey) {
+                const kNorm = slotWithDishesKey.toLowerCase().replace(/[^a-z0-9]/g, '')
+                const matchedAvailableSlot = availableMealSlots.find((s) => {
+                  const sNorm = s.key.toLowerCase().replace(/[^a-z0-9]/g, '')
+                  return sNorm === kNorm || sNorm.includes(kNorm) || kNorm.includes(sNorm)
+                })
+                if (matchedAvailableSlot) {
+                  setActiveSlot(matchedAvailableSlot.key)
+                }
+              }
+            }
+          }
         }
       } catch (err: unknown) {
         if (!ignore) {
@@ -361,12 +313,18 @@ export default function FnbPage() {
     return () => {
       ignore = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate])
 
   const handleOpenOrderModal = () => {
     setIsOrderModalOpen(true)
     setOrderMode('personal')
-    setOrderDate(selectedDate)
+    const localToday = (() => {
+      const d = new Date()
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    })()
+    const validDate = selectedDate >= localToday ? selectedDate : localToday
+    setOrderDate(validDate)
     setSelectionType('dish')
     setServiceType('room_service')
     setDishQuantities({})
@@ -413,7 +371,25 @@ export default function FnbPage() {
 
   const currentSlotDishes = useMemo(() => {
     if (menuData?.menu) {
-      return menuData.menu[currentActiveSlot] || []
+      if (menuData.menu[currentActiveSlot]) {
+        return menuData.menu[currentActiveSlot]
+      }
+      const targetNorm = currentActiveSlot.toLowerCase().replace(/[^a-z0-9]/g, '')
+      const foundKey = Object.keys(menuData.menu).find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === targetNorm)
+      if (foundKey && menuData.menu[foundKey]) {
+        return menuData.menu[foundKey]
+      }
+      const keywordKey = Object.keys(menuData.menu).find((k) => {
+        const kNorm = k.toLowerCase()
+        if (targetNorm.includes('break') && kNorm.includes('break')) return true
+        if (targetNorm.includes('lunch') && kNorm.includes('lunch')) return true
+        if (targetNorm.includes('snack') && kNorm.includes('snack')) return true
+        if (targetNorm.includes('dinner') && kNorm.includes('dinner')) return true
+        return false
+      })
+      if (keywordKey && menuData.menu[keywordKey]) {
+        return menuData.menu[keywordKey]
+      }
     }
     if (menuData?.menuItems) {
       const rawSlotDishes = menuData.menuItems.filter((m) => isItemForSlot(m.mealSlot, m.mealSlotId, currentActiveSlot))
@@ -501,14 +477,18 @@ export default function FnbPage() {
       }
     }
 
-    const slotStartDt = new Date(
-      `${today}T${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}:00`,
-    )
-    const cutoffDt = new Date(slotStartDt.getTime() - 2 * 60 * 60 * 1000)
     const now = new Date()
+    const currentTotalMin = now.getHours() * 60 + now.getMinutes()
+    const slotStartTotalMin = startHour * 60 + startMin
+    const cutoffTotalMin = slotStartTotalMin - 120
 
-    const isPassed = now > cutoffDt
-    const cutoffTimeFormatted = cutoffDt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const isPassed = currentTotalMin > cutoffTotalMin
+
+    const cutoffHour = Math.floor(Math.max(0, cutoffTotalMin) / 60)
+    const cutoffMin = Math.max(0, cutoffTotalMin) % 60
+    const period = cutoffHour >= 12 ? 'PM' : 'AM'
+    const displayHour = cutoffHour % 12 || 12
+    const cutoffTimeFormatted = `${String(displayHour).padStart(2, '0')}:${String(cutoffMin).padStart(2, '0')} ${period}`
 
     return {
       isPassed,
@@ -628,13 +608,16 @@ export default function FnbPage() {
             dishId,
             specialMealSlotDishId: specDish?.id,
             quantity,
+            unitPrice: Number(specDish?.price || 0),
           }
         }
         const mItem = modalSlotDishes.find((m) => m.dishId === dishId || m.dish?.id === dishId)
+        const price = Number(mItem?.dish?.price || mItem?.price || 0)
         return {
           dishId,
           menuItemId: mItem?.menuItemId || mItem?.id,
           quantity,
+          unitPrice: price,
         }
       })
 
@@ -646,6 +629,7 @@ export default function FnbPage() {
         mealSlotId: selectedMealSlotId || undefined,
         specialMealSlotId: orderMode === 'special' ? selectedSpecialSlotId : undefined,
         items: selectionType === 'dish' ? itemsPayload : [],
+        totalAmount: calculatedTotalAmount,
       }
 
       const res = await fnbMobileService.placeOrder(payload)
@@ -908,7 +892,9 @@ export default function FnbPage() {
               const imgUrl = getDishImageUrl(dishObj)
               const isCovered =
                 isSlotIncludedInPackage(currentActiveSlot) && (item.isPackageCovered ?? !item.isOptional)
-              const price = isCovered ? 0 : item.effectivePrice || dishObj.basePrice || 0
+              const price = isCovered
+                ? 0
+                : (item.price ?? item.effectivePrice ?? item.basePrice ?? dishObj.price ?? dishObj.basePrice ?? 0)
 
               return (
                 <div
