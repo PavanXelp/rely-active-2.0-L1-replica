@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react'
-import { Plus, QrCode, Edit2, Trash2 } from 'lucide-react'
+import { Plus, QrCode, Edit2, Trash2, Share2 } from 'lucide-react'
 import { gateApi, type CreatePreapprovedPayload } from '@/lib/services/gateApi'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
-import { CheckCircle2, XCircle, X } from 'lucide-react'
+import { CheckCircle2, XCircle, X, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function GatePage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [preapproved, setPreapproved] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [entries, setEntries] = useState<any[]>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [walkins, setWalkins] = useState<any[]>([])
   const [isCreating, setIsCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'PENDING' | 'INVITES' | 'ENTRY_LOGS' | 'GUESTS'>('INVITES')
-  const [viewPhoto, setViewPhoto] = useState<string | null>(null)
+  const [photoViewerData, setPhotoViewerData] = useState<{ photos: string[]; currentIndex: number } | null>(null)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [guestMasters, setGuestMasters] = useState<any[]>([])
@@ -27,6 +29,7 @@ export default function GatePage() {
   const [dateFilter, setDateFilter] = useState<string>('')
 
   const { resident } = useAuthStore()
+
   const initialFormData: Partial<CreatePreapprovedPayload> = {
     visitorType: 'Guest',
     visitorName: '',
@@ -139,13 +142,36 @@ export default function GatePage() {
     }
   }
 
+  const fetchEntries = async () => {
+    try {
+      const res = await gateApi.getEntries({
+        page,
+        limit: 10,
+        status: statusFilter,
+        visitorType: visitorTypeFilter,
+        date: dateFilter,
+      })
+      if (res.success) {
+        setEntries(res.data || [])
+        setTotalPages(res.pagination?.totalPages || 1)
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchPreapproved()
+    if (activeTab === 'ENTRY_LOGS') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchEntries()
+    } else {
+       
+      fetchPreapproved()
+    }
     fetchWalkins()
     fetchGuestMasters()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, visitorTypeFilter, dateFilter])
+  }, [activeTab, page, statusFilter, visitorTypeFilter, dateFilter])
 
   const handleUpdateWalkin = async (id: string, status: 'Approved' | 'Rejected') => {
     try {
@@ -224,6 +250,139 @@ export default function GatePage() {
     setEditingId(item.id)
     setIsCreating(true)
   }
+   
+  const handleShareWhatsApp = (item: Record<string, unknown>) => {
+    const residentName =
+      (resident as unknown as Record<string, unknown>)?.username || resident?.firstName || 'A resident'
+    const date = new Date(item.startDate as string).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })
+    const startTime = (item.startTime as string) || ''
+    const endTime = (item.endTime as string) || ''
+    const entryCode = (item.passcode as string) || (item.qrCode as string) || ''
+
+    let message = `${residentName} has invited you to visit their society on ${date}`
+    if (startTime && endTime) {
+      message += `, from ${startTime} to ${endTime}`
+    } else if (startTime) {
+      message += ` at ${startTime}`
+    }
+    message += `. Please use ${entryCode} as the entry code at the gate.`
+
+    const makeBlobPromise = () =>
+      new Promise<Blob>((resolve, reject) => {
+        try {
+          const canvas = document.createElement('canvas')
+          canvas.width = 600
+          canvas.height = 800
+          const ctx = canvas.getContext('2d')
+          if (!ctx) throw new Error('No canvas')
+
+          ctx.fillStyle = '#FDFBF7'
+          ctx.fillRect(0, 0, 600, 800)
+          ctx.textAlign = 'center'
+          ctx.fillStyle = '#111827'
+          ctx.font = 'bold 28px sans-serif'
+          ctx.fillText(`${residentName} has invited you.`, 300, 80)
+          ctx.fillStyle = '#4B5563'
+          ctx.font = '18px sans-serif'
+          ctx.fillText('Show this QR code or OTP to the guard at gate', 300, 120)
+          ctx.fillStyle = '#9CA3AF'
+          ctx.font = '16px sans-serif'
+          ctx.fillText('— OR —', 300, 500)
+          ctx.fillStyle = '#0F2C36'
+          const extendedCtx = ctx as CanvasRenderingContext2D & {
+            roundRect?: (x: number, y: number, w: number, h: number, r: number) => void
+          }
+          if (typeof extendedCtx.roundRect === 'function') {
+            extendedCtx.beginPath()
+            extendedCtx.roundRect(150, 530, 300, 80, 12)
+            extendedCtx.fill()
+          } else {
+            ctx.fillRect(150, 530, 300, 80)
+          }
+          ctx.fillStyle = '#FFFFFF'
+          ctx.font = 'bold 48px monospace'
+          ctx.fillText(entryCode, 300, 588)
+          ctx.fillStyle = '#5C4A3D'
+          ctx.font = 'bold 20px sans-serif'
+          ctx.fillText(`${date}${startTime ? `, ${startTime}` : ''}${endTime ? ` - ${endTime}` : ''}`, 300, 660)
+          ctx.fillStyle = '#111827'
+          ctx.font = 'bold 24px sans-serif'
+          ctx.fillText('Rely Active', 300, 740)
+
+          const finish = () => canvas.toBlob((b) => (b ? resolve(b) : reject()), 'image/png')
+          if (item.qrCodeImage) {
+            const img = new Image()
+            img.onload = () => {
+              ctx.drawImage(img, 150, 160, 300, 300)
+              finish()
+            }
+            img.onerror = () => finish()
+            img.src = item.qrCodeImage as string
+          } else {
+            finish()
+          }
+        } catch (err) {
+          reject(err)
+        }
+      })
+
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
+    if (isMobile && navigator.share) {
+      makeBlobPromise().then((blob) => {
+        const file = new File([blob], 'gate-pass.png', { type: 'image/png' })
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ title: 'Gate Pass', text: message, files: [file] })
+        } else {
+          window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+        }
+      })
+    } else {
+      let clipboardAttempted = false
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          const cbItem = new ClipboardItem({ 'image/png': makeBlobPromise() })
+          navigator.clipboard
+            .write([cbItem])
+            .then(() => {
+              alert('Gate pass image copied! Press Ctrl+V inside WhatsApp to attach it.')
+            })
+            .catch((err) => {
+              console.warn('Clipboard write blocked, downloading instead', err)
+              makeBlobPromise().then((blob) => {
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'Gate-Pass.png'
+                a.click()
+                URL.revokeObjectURL(url)
+              })
+            })
+          clipboardAttempted = true
+        } catch (e) {
+          console.warn('ClipboardItem error', e)
+        }
+      }
+
+      if (!clipboardAttempted) {
+        makeBlobPromise().then((blob) => {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = 'Gate-Pass.png'
+          a.click()
+          URL.revokeObjectURL(url)
+          alert('Gate pass image downloaded! Please attach it in WhatsApp.')
+        })
+      }
+
+      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
+    }
+  }
 
   const handleDeletePreapproved = async (id: string) => {
     if (!confirm('Are you sure you want to delete this pre-approved invite?')) return
@@ -243,7 +402,7 @@ export default function GatePage() {
     <div className="p-4 pb-24 max-w-md mx-auto space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Gate</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Gate and Security</h1>
           <p className="text-sm text-gray-500">Manage your visitors</p>
         </div>
         {!isCreating && (
@@ -575,13 +734,19 @@ export default function GatePage() {
         <div className="space-y-6">
           <div className="flex bg-gray-100 p-1 rounded-xl">
             <button
-              onClick={() => setActiveTab('INVITES')}
+              onClick={() => {
+                setActiveTab('INVITES')
+                setPage(1)
+              }}
               className={`flex-1 py-2 text-sm font-bold rounded-lg ${activeTab === 'INVITES' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
             >
               Pre-Approved
             </button>
             <button
-              onClick={() => setActiveTab('ENTRY_LOGS')}
+              onClick={() => {
+                setActiveTab('ENTRY_LOGS')
+                setPage(1)
+              }}
               className={`flex-1 py-2 text-sm font-bold rounded-lg ${activeTab === 'ENTRY_LOGS' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
             >
               Entry Logs
@@ -679,9 +844,10 @@ export default function GatePage() {
                         {walkin.visitorPhotos && walkin.visitorPhotos.length > 0 && (
                           <div
                             className="flex -space-x-2 relative cursor-pointer group"
-                            onClick={() => setViewPhoto(walkin.visitorPhotos[0])}
+                            onClick={() => setPhotoViewerData({ photos: walkin.visitorPhotos, currentIndex: 0 })}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') setViewPhoto(walkin.visitorPhotos[0])
+                              if (e.key === 'Enter' || e.key === ' ')
+                                setPhotoViewerData({ photos: walkin.visitorPhotos, currentIndex: 0 })
                             }}
                             role="button"
                             tabIndex={0}
@@ -787,167 +953,289 @@ export default function GatePage() {
                   />
                 </div>
               </div>
-              {preapproved
-                .filter((preapproved) => (activeTab === 'INVITES' ? !preapproved.isLogOnly : true))
-                .map((preapproved) => (
-                  <div
-                    key={preapproved.id}
-                    className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3"
-                  >
-                    <div className="flex justify-between items-start gap-3">
-                      <div className="flex-1 flex gap-3 items-start">
-                        {preapproved.visitorPhotos && preapproved.visitorPhotos.length > 0 ? (
-                          <div
-                            className="flex -space-x-2 relative cursor-pointer group mt-1"
-                            onClick={() => setViewPhoto(preapproved.visitorPhotos[0])}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') setViewPhoto(preapproved.visitorPhotos[0])
-                            }}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            {preapproved.visitorPhotos.slice(0, 3).map((photo: string, idx: number) => (
-                              <img
-                                key={idx}
-                                src={photo}
-                                alt={preapproved.visitorName}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-white shrink-0 group-hover:opacity-80 transition-opacity"
-                              />
-                            ))}
-                            {preapproved.visitorPhotos.length > 3 && (
-                              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border-2 border-white text-gray-500 font-bold shrink-0 text-xs">
-                                +{preapproved.visitorPhotos.length - 3}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-500 font-bold shrink-0 mt-1">
-                            {preapproved.visitorName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-md flex items-center gap-1">
-                              {preapproved.visitorType} {preapproved.isWalkin ? 'Walk-in' : ''}
-                              {preapproved.scheduleType === 'FREQUENT' && (
-                                <span className="bg-purple-100 text-purple-700 px-1 rounded-sm">Freq</span>
-                              )}
-                            </span>
-                            <span
-                              className={`text-[10px] font-bold ${
-                                (preapproved.entryStatus || preapproved.status) === 'Pending'
-                                  ? 'text-amber-500'
-                                  : (preapproved.entryStatus || preapproved.status) === 'Inside'
-                                    ? 'text-blue-500'
-                                    : (preapproved.entryStatus || preapproved.status) === 'Rejected'
-                                      ? 'text-red-500'
-                                      : 'text-emerald-500'
-                              }`}
+
+              {activeTab === 'ENTRY_LOGS'
+                ? entries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3"
+                    >
+                      <div className="flex justify-between items-start gap-3 w-full">
+                        <div className="flex-1 flex gap-3 items-start min-w-0">
+                          {entry.visitorPhotos && entry.visitorPhotos.length > 0 ? (
+                            <div
+                              className="flex -space-x-2 relative cursor-pointer group mt-1"
+                              onClick={() => setPhotoViewerData({ photos: entry.visitorPhotos, currentIndex: 0 })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ')
+                                  setPhotoViewerData({ photos: entry.visitorPhotos, currentIndex: 0 })
+                              }}
+                              role="button"
+                              tabIndex={0}
                             >
-                              {preapproved.entryStatus || preapproved.status}
-                            </span>
-                          </div>
-                          <h3 className="font-bold text-gray-900 text-sm">{preapproved.visitorName}</h3>
-                          <div className="flex items-center flex-wrap gap-3 text-xs text-gray-500 mt-1">
-                            {preapproved.clockedInAt && (
-                              <span className="flex items-center gap-1 font-medium text-emerald-600">
-                                In: {new Date(preapproved.clockedInAt).toLocaleTimeString()}
-                              </span>
-                            )}
-                            {preapproved.clockedOutAt && (
-                              <span className="flex items-center gap-1 font-medium text-gray-600">
-                                Out: {new Date(preapproved.clockedOutAt).toLocaleTimeString()}
-                              </span>
-                            )}
-                            <div className="text-xs text-gray-500 space-y-1">
-                              {!preapproved.clockedInAt && preapproved.startDate && (
-                                <p>
-                                  <span className="font-semibold text-gray-600">
-                                    {preapproved.scheduleType === 'FREQUENT' ? 'Start Date:' : 'Date:'}
-                                  </span>{' '}
-                                  {new Date(preapproved.startDate).toLocaleDateString()}
-                                </p>
+                              {entry.visitorPhotos.slice(0, 3).map((photo: string, idx: number) => (
+                                <img
+                                  key={idx}
+                                  src={photo}
+                                  alt={entry.visitorName}
+                                  className="w-12 h-12 rounded-full object-cover border-2 border-white shrink-0 group-hover:opacity-80 transition-opacity"
+                                />
+                              ))}
+                              {entry.visitorPhotos.length > 3 && (
+                                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border-2 border-white text-gray-500 font-bold shrink-0 text-xs">
+                                  +{entry.visitorPhotos.length - 3}
+                                </div>
                               )}
-                              {!preapproved.clockedInAt &&
-                                preapproved.endDate &&
-                                preapproved.scheduleType === 'FREQUENT' && (
+                            </div>
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-500 font-bold shrink-0 mt-1">
+                              {entry.visitorName.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-md flex items-center gap-1">
+                                {entry.visitorType} {entry.isWalkin ? 'Walk-in' : ''}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold ${
+                                  entry.status === 'Pending'
+                                    ? 'text-amber-500'
+                                    : entry.status === 'Inside'
+                                      ? 'text-blue-500'
+                                      : entry.status === 'Rejected'
+                                        ? 'text-red-500'
+                                        : 'text-emerald-500'
+                                }`}
+                              >
+                                {entry.status}
+                              </span>
+                            </div>
+                            <h3 className="font-bold text-gray-900 text-sm truncate">{entry.visitorName}</h3>
+                            <div className="flex items-center flex-wrap gap-3 text-xs text-gray-500 mt-1">
+                              {entry.createdAt && (
+                                <span className="flex items-center gap-1 font-medium text-blue-600">
+                                  Entry At: {new Date(entry.createdAt).toLocaleString()}
+                                </span>
+                              )}
+                              {entry.clockedInAt && (
+                                <span className="flex items-center gap-1 font-medium text-emerald-600">
+                                  In: {new Date(entry.clockedInAt).toLocaleTimeString()}
+                                </span>
+                              )}
+                              {entry.clockedOutAt && (
+                                <span className="flex items-center gap-1 font-medium text-gray-600">
+                                  Out: {new Date(entry.clockedOutAt).toLocaleTimeString()}
+                                </span>
+                              )}
+                              <div className="text-xs text-gray-500 space-y-1">
+                                {!entry.clockedInAt && entry.startDate && (
                                   <p>
-                                    <span className="font-semibold text-gray-600">End Date:</span>{' '}
-                                    {new Date(preapproved.endDate).toLocaleDateString()}
+                                    <span className="font-semibold text-gray-600">Date:</span>{' '}
+                                    {new Date(entry.startDate).toLocaleDateString()}
                                   </p>
                                 )}
-                              {!preapproved.clockedInAt && preapproved.startTime && (
-                                <p>
-                                  <span className="font-semibold text-gray-600">Start Time:</span>{' '}
-                                  {preapproved.startTime}
-                                </p>
-                              )}
-                              {!preapproved.clockedInAt && preapproved.endTime && (
-                                <p>
-                                  <span className="font-semibold text-gray-600">End Time:</span> {preapproved.endTime}
-                                </p>
-                              )}
+                                {!entry.clockedInAt && entry.startTime && (
+                                  <p>
+                                    <span className="font-semibold text-gray-600">Start Time:</span> {entry.startTime}
+                                  </p>
+                                )}
+                                {!entry.clockedInAt && entry.endTime && (
+                                  <p>
+                                    <span className="font-semibold text-gray-600">End Time:</span> {entry.endTime}
+                                  </p>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                      {!preapproved.isWalkin &&
-                        !['Completed', 'Rejected', 'Expired', 'Cancelled'].includes(
-                          preapproved.entryStatus || preapproved.status,
-                        ) && (
-                          <div className="flex flex-col items-center justify-center shrink-0 w-28">
-                            {preapproved.qrCodeImage ? (
-                              <button
-                                onClick={() => setViewPhoto(preapproved.qrCodeImage as string)}
-                                className="hover:opacity-80 transition-opacity"
+                    </div>
+                  ))
+                : preapproved
+                    .filter((preapproved) => !preapproved.isLogOnly)
+                    .map((preapproved) => (
+                      <div
+                        key={preapproved.id}
+                        className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3"
+                      >
+                        <div className="flex justify-between items-start gap-3 w-full">
+                          <div className="flex-1 flex gap-3 items-start min-w-0">
+                            {preapproved.visitorPhotos && preapproved.visitorPhotos.length > 0 ? (
+                              <div
+                                className="flex -space-x-2 relative cursor-pointer group mt-1"
+                                onClick={() =>
+                                  setPhotoViewerData({ photos: preapproved.visitorPhotos, currentIndex: 0 })
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ')
+                                    setPhotoViewerData({ photos: preapproved.visitorPhotos, currentIndex: 0 })
+                                }}
+                                role="button"
+                                tabIndex={0}
                               >
-                                <img
-                                  src={preapproved.qrCodeImage}
-                                  alt="QR Code"
-                                  className="w-24 h-24 rounded-lg object-contain bg-white border border-gray-200 p-1 shadow-sm cursor-pointer"
-                                />
-                              </button>
+                                {preapproved.visitorPhotos.slice(0, 3).map((photo: string, idx: number) => (
+                                  <img
+                                    key={idx}
+                                    src={photo}
+                                    alt={preapproved.visitorName}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-white shrink-0 group-hover:opacity-80 transition-opacity"
+                                  />
+                                ))}
+                                {preapproved.visitorPhotos.length > 3 && (
+                                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border-2 border-white text-gray-500 font-bold shrink-0 text-xs">
+                                    +{preapproved.visitorPhotos.length - 3}
+                                  </div>
+                                )}
+                              </div>
                             ) : (
-                              <div className="w-24 h-24 bg-gray-100 rounded-xl flex items-center justify-center mb-1">
-                                <QrCode className="w-8 h-8 text-gray-700" />
+                              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-500 font-bold shrink-0 mt-1">
+                                {preapproved.visitorName.charAt(0).toUpperCase()}
                               </div>
                             )}
-                            <span
-                              className="text-[9px] font-mono font-medium text-gray-400 mt-2 break-all w-full text-center select-all"
-                              title={preapproved.qrCode}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-md flex items-center gap-1">
+                                  {preapproved.visitorType} {preapproved.isWalkin ? 'Walk-in' : ''}
+                                  {preapproved.scheduleType === 'FREQUENT' && (
+                                    <span className="bg-purple-100 text-purple-700 px-1 rounded-sm">Freq</span>
+                                  )}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-bold ${
+                                    (preapproved.entryStatus || preapproved.status) === 'Pending'
+                                      ? 'text-amber-500'
+                                      : (preapproved.entryStatus || preapproved.status) === 'Inside'
+                                        ? 'text-blue-500'
+                                        : (preapproved.entryStatus || preapproved.status) === 'Rejected'
+                                          ? 'text-red-500'
+                                          : 'text-emerald-500'
+                                  }`}
+                                >
+                                  {preapproved.entryStatus || preapproved.status}
+                                </span>
+                              </div>
+                              <h3 className="font-bold text-gray-900 text-sm truncate">{preapproved.visitorName}</h3>
+                              <div className="flex items-center flex-wrap gap-3 text-xs text-gray-500 mt-1">
+                                {preapproved.clockedInAt && (
+                                  <span className="flex items-center gap-1 font-medium text-emerald-600">
+                                    In: {new Date(preapproved.clockedInAt).toLocaleTimeString()}
+                                  </span>
+                                )}
+                                {preapproved.clockedOutAt && (
+                                  <span className="flex items-center gap-1 font-medium text-gray-600">
+                                    Out: {new Date(preapproved.clockedOutAt).toLocaleTimeString()}
+                                  </span>
+                                )}
+                                <div className="text-xs text-gray-500 space-y-1">
+                                  {!preapproved.clockedInAt && preapproved.startDate && (
+                                    <p>
+                                      <span className="font-semibold text-gray-600">
+                                        {preapproved.scheduleType === 'FREQUENT' ? 'Start Date:' : 'Date:'}
+                                      </span>{' '}
+                                      {new Date(preapproved.startDate).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                  {!preapproved.clockedInAt &&
+                                    preapproved.endDate &&
+                                    preapproved.scheduleType === 'FREQUENT' && (
+                                      <p>
+                                        <span className="font-semibold text-gray-600">End Date:</span>{' '}
+                                        {new Date(preapproved.endDate).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  {!preapproved.clockedInAt && preapproved.startTime && (
+                                    <p>
+                                      <span className="font-semibold text-gray-600">Start Time:</span>{' '}
+                                      {preapproved.startTime}
+                                    </p>
+                                  )}
+                                  {!preapproved.clockedInAt && preapproved.endTime && (
+                                    <p>
+                                      <span className="font-semibold text-gray-600">End Time:</span>{' '}
+                                      {preapproved.endTime}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {!preapproved.isWalkin &&
+                            !['Completed', 'Rejected', 'Expired', 'Cancelled'].includes(
+                              preapproved.entryStatus || preapproved.status,
+                            ) && (
+                              <div className="flex flex-col items-center justify-center shrink-0 w-28">
+                                {preapproved.qrCodeImage ? (
+                                  <button
+                                    onClick={() =>
+                                      setPhotoViewerData({
+                                        photos: [preapproved.qrCodeImage as string],
+                                        currentIndex: 0,
+                                      })
+                                    }
+                                    className="hover:opacity-80 transition-opacity"
+                                  >
+                                    <img
+                                      src={preapproved.qrCodeImage}
+                                      alt="QR Code"
+                                      className="w-24 h-24 rounded-lg object-contain bg-white border border-gray-200 p-1 shadow-sm cursor-pointer"
+                                    />
+                                  </button>
+                                ) : (
+                                  <div className="w-24 h-24 bg-gray-100 rounded-xl flex items-center justify-center mb-1">
+                                    <QrCode className="w-8 h-8 text-gray-700" />
+                                  </div>
+                                )}
+                                <span
+                                  className="text-[9px] font-mono font-medium text-gray-400 mt-2 break-all w-full text-center select-all"
+                                  title={preapproved.qrCode}
+                                >
+                                  {preapproved.qrCode}
+                                </span>
+                              </div>
+                            )}
+                        </div>
+
+                        {/* Actions for Pre-approved Items */}
+                        {!preapproved.isWalkin && activeTab === 'INVITES' && (
+                          <div className="flex justify-end gap-2 border-t pt-3 mt-1">
+                            <button
+                              onClick={() => handleShareWhatsApp(preapproved)}
+                              className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
                             >
-                              {preapproved.qrCode}
-                            </span>
+                              <Share2 className="w-3.5 h-3.5" />
+                              Share
+                            </button>
+                            {(preapproved.entryStatus || preapproved.status) === 'Pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleEditPreapproved(preapproved)}
+                                  className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-[#005390] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeletePreapproved(preapproved.id)}
+                                  className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Delete
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
-                    </div>
+                      </div>
+                    ))}
 
-                    {/* Actions for Pre-approved Items */}
-                    {!preapproved.isWalkin &&
-                      activeTab === 'INVITES' &&
-                      (preapproved.entryStatus || preapproved.status) === 'Pending' && (
-                        <div className="flex justify-end gap-2 border-t pt-3 mt-1">
-                          <button
-                            onClick={() => handleEditPreapproved(preapproved)}
-                            className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-[#005390] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeletePreapproved(preapproved.id)}
-                            className="px-3 py-1.5 flex items-center gap-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                  </div>
-                ))}
-
-              {preapproved.filter((preapproved) => (activeTab === 'INVITES' ? !preapproved.isLogOnly : true)).length ===
-                0 && <div className="text-center py-8 text-sm text-gray-500 font-medium">No entries found</div>}
+              {activeTab === 'ENTRY_LOGS'
+                ? entries.length === 0 && (
+                    <div className="text-center py-8 text-sm text-gray-500 font-medium">No entries found</div>
+                  )
+                : preapproved.filter((preapproved) => !preapproved.isLogOnly).length === 0 && (
+                    <div className="text-center py-8 text-sm text-gray-500 font-medium">No invites found</div>
+                  )}
 
               {totalPages > 1 && (
                 <div className="flex justify-between items-center px-1 mt-4">
@@ -976,20 +1264,74 @@ export default function GatePage() {
       )}
 
       {/* Photo Viewer Modal */}
-      {viewPhoto && (
-        <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-sm max-h-[90vh] bg-white rounded-2xl shadow-2xl p-2 flex flex-col">
+      {photoViewerData && photoViewerData.photos.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="relative bg-white/10 rounded-2xl shadow-2xl overflow-hidden max-w-2xl w-full p-2 flex items-center justify-center min-h-[300px]">
             <button
-              onClick={() => setViewPhoto(null)}
-              className="absolute -top-4 -right-4 p-2 bg-white rounded-full text-gray-500 hover:text-gray-900 shadow-md border border-gray-200 z-[110]"
+              onClick={() => setPhotoViewerData(null)}
+              className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/40 rounded-full text-white shadow-lg backdrop-blur-md transition-colors z-10"
             >
               <X className="w-5 h-5" />
             </button>
+
+            {photoViewerData.photos.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPhotoViewerData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentIndex: prev.currentIndex === 0 ? prev.photos.length - 1 : prev.currentIndex - 1,
+                        }
+                      : null,
+                  )
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 hover:bg-white/40 rounded-full text-white shadow-lg backdrop-blur-md transition-colors z-10"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            )}
+
             <img
-              src={viewPhoto}
-              alt="Enlarged visitor view"
-              className="w-full h-full object-contain rounded-xl max-h-[85vh]"
+              src={photoViewerData.photos[photoViewerData.currentIndex]}
+              alt={`Visitor capture ${photoViewerData.currentIndex + 1}`}
+              className="w-full h-auto max-h-[80vh] object-contain rounded-xl"
             />
+
+            {photoViewerData.photos.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setPhotoViewerData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          currentIndex: prev.currentIndex === prev.photos.length - 1 ? 0 : prev.currentIndex + 1,
+                        }
+                      : null,
+                  )
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 hover:bg-white/40 rounded-full text-white shadow-lg backdrop-blur-md transition-colors z-10"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            )}
+
+            {photoViewerData.photos.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md">
+                {photoViewerData.photos.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setPhotoViewerData((prev) => (prev ? { ...prev, currentIndex: idx } : null))
+                    }}
+                    className={`w-2 h-2 rounded-full transition-all ${idx === photoViewerData.currentIndex ? 'bg-white w-4' : 'bg-white/50 hover:bg-white/80'}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

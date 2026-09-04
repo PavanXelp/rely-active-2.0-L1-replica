@@ -74,4 +74,14 @@ export const gateApi = {
     const response = await api.delete(`/mobile/l1/gns/guest-master/${id}`)
     return response.data
   },
+  getEntries: async (params?: {
+    page?: number
+    limit?: number
+    status?: string
+    visitorType?: string
+    date?: string
+  }) => {
+    const response = await api.get('/mobile/l1/gns/entries', { params })
+    return response.data
+  },
 }
