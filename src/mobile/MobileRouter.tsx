@@ -4,6 +4,7 @@ import Dashboard from '@/pages/Dashboard'
 import FnbPage from '@/pages/Fnb'
 import Login from '@/pages/Login'
 import ProfilePage from '@/pages/Profile'
+import GatePage from '@/pages/Gate'
 
 export default function MobileRouter() {
   return (
@@ -13,6 +14,7 @@ export default function MobileRouter() {
         <Route index element={<Navigate to="/overview" replace />} />
         <Route path="overview" element={<Dashboard />} />
         <Route path="fnb" element={<FnbPage />} />
+        <Route path="gate" element={<GatePage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/overview" replace />} />

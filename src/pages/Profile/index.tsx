@@ -97,7 +97,7 @@ export default function ProfilePage() {
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await api.get('/mobile/resident/auth/profile')
+      const res = await api.get('/mobile/l1/resident/auth/profile')
       if (res.data?.success && res.data?.data) {
         setProfile(res.data.data)
       } else {

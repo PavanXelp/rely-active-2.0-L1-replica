@@ -7,7 +7,9 @@ export interface ResidentUser {
   lastName?: string
   primaryPhone?: string
   locationId?: string
+  locId?: string
   unitNumber?: string
+  unitId?: string
   propertyName?: string
   locationName?: string
 }

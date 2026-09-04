@@ -55,7 +55,7 @@ export default function FnbPage() {
     const fetchDailyMenu = async (dStr: string) => {
       try {
         setLoading(true)
-        const res = await api.get(`/mobile/fnb/menu?date=${dStr}`)
+        const res = await api.get(`/mobile/l1/fnb/menu?date=${dStr}`)
         if (!ignore) {
           if (res.data?.success && res.data?.data) {
             setMenuData(res.data.data)
@@ -85,7 +85,7 @@ export default function FnbPage() {
 
   const handlePlaceOrder = async (item: MenuItem) => {
     try {
-      const res = await api.post('/mobile/fnb/order', {
+      const res = await api.post('/mobile/l1/fnb/order', {
         menuItemId: item.menuItemId,
         mealSlot: item.mealSlot,
         date: selectedDate,

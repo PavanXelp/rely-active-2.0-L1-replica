@@ -26,20 +26,12 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   const [ticketModalOpen, setTicketModalOpen] = useState(false)
-  const [gateModalOpen, setGateModalOpen] = useState(false)
 
   // Quick ticket form state
   const [ticketTitle, setTicketTitle] = useState('')
   const [ticketCategory, setTicketCategory] = useState('Maintenance')
   const [ticketsList, setTicketsList] = useState([
     { id: 'TCK-101', title: 'A/C Filter Cleaning', category: 'Maintenance', status: 'In Progress', date: 'Today' },
-  ])
-
-  // Gate visitor state
-  const [visitorName, setVisitorName] = useState('')
-  const [visitorType, setVisitorType] = useState('Guest')
-  const [visitorsList, setVisitorsList] = useState([
-    { id: 'GATE-88', name: 'John Doe', type: 'Delivery', status: 'Pre-Approved', time: '02:30 PM' },
   ])
 
   const todayFormatted = new Date().toLocaleDateString('en-US', {
@@ -62,22 +54,6 @@ export default function Dashboard() {
     setTicketTitle('')
     setTicketModalOpen(false)
     toast.success(`Ticket #${newTck.id} created successfully!`)
-  }
-
-  const handleCreateGatePass = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!visitorName.trim()) return
-    const newVis = {
-      id: `GATE-${Math.floor(10 + Math.random() * 90)}`,
-      name: visitorName.trim(),
-      type: visitorType,
-      status: 'Pre-Approved',
-      time: 'Expected Today',
-    }
-    setVisitorsList([newVis, ...visitorsList])
-    setVisitorName('')
-    setGateModalOpen(false)
-    toast.success(`Gate pass generated for ${newVis.name}!`)
   }
 
   return (
@@ -207,7 +183,7 @@ export default function Dashboard() {
 
         {/* 3. Gate & Security Card */}
         <Card
-          onClick={() => setGateModalOpen(true)}
+          onClick={() => navigate('/gate')}
           className="rounded-3xl border border-emerald-200 dark:border-emerald-900/40 bg-gradient-to-br from-emerald-50/60 via-white to-teal-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-emerald-400 transition-all cursor-pointer group"
         >
           <CardContent className="p-4 space-y-2.5">
@@ -236,12 +212,10 @@ export default function Dashboard() {
             <div className="bg-white/90 dark:bg-slate-800/90 rounded-xl p-2.5 flex items-center justify-between border border-emerald-100 dark:border-emerald-900/30 text-xs">
               <div className="flex items-center gap-2">
                 <QrCode className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="font-bold text-gray-800 dark:text-gray-200">
-                  {visitorsList[0]?.name || 'Pre-Approve Visitor'}
-                </span>
+                <span className="font-bold text-gray-800 dark:text-gray-200">Pre-Approve Visitor</span>
               </div>
               <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Pre-Approved
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Gateway
               </span>
             </div>
           </CardContent>
@@ -339,78 +313,6 @@ export default function Dashboard() {
                   className="w-1/2 h-10 text-xs bg-amber-500 hover:bg-amber-600 text-white font-extrabold rounded-xl"
                 >
                   Create Ticket
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Gate Pass Modal Overlay */}
-      {gateModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-gray-200 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between border-b pb-3 border-gray-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                <h3 className="font-black text-sm">Pre-Approve Visitor Pass</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setGateModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateGatePass} className="space-y-3">
-              <div className="space-y-1">
-                <label htmlFor="visitor-name-input" className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
-                  Visitor Name / Delivery Service
-                </label>
-                <Input
-                  id="visitor-name-input"
-                  type="text"
-                  placeholder="e.g. Swiggy / Alex Smith"
-                  value={visitorName}
-                  onChange={(e) => setVisitorName(e.target.value)}
-                  className="h-10 text-xs rounded-xl"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label htmlFor="visitor-type-select" className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
-                  Visitor Type
-                </label>
-                <select
-                  id="visitor-type-select"
-                  value={visitorType}
-                  onChange={(e) => setVisitorType(e.target.value)}
-                  className="w-full h-10 bg-background border border-input rounded-xl px-3 text-xs font-semibold"
-                >
-                  <option value="Guest">Guest / Friend</option>
-                  <option value="Delivery">Delivery / Courier</option>
-                  <option value="Service">Service Technician</option>
-                  <option value="Cab">Cab / Taxi</option>
-                </select>
-              </div>
-
-              <div className="pt-2 flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setGateModalOpen(false)}
-                  className="w-1/2 h-10 text-xs rounded-xl"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="w-1/2 h-10 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl"
-                >
-                  Approve Pass
                 </Button>
               </div>
             </form>
