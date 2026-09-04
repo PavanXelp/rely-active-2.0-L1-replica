@@ -6,15 +6,18 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { CheckCircle2, XCircle, X } from 'lucide-react'
 
 export default function GatePage() {
-  const [preapproved, setPreapproved] = useState<Record<string, unknown>[]>([])
-  const [walkins, setWalkins] = useState<Record<string, unknown>[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [preapproved, setPreapproved] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [walkins, setWalkins] = useState<any[]>([])
   const [isCreating, setIsCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'PENDING' | 'INVITES' | 'ENTRY_LOGS' | 'GUESTS'>('INVITES')
   const [viewPhoto, setViewPhoto] = useState<string | null>(null)
 
-  const [guestMasters, setGuestMasters] = useState<Record<string, unknown>[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [guestMasters, setGuestMasters] = useState<any[]>([])
   const [newGuest, setNewGuest] = useState({ name: '', phone: '', notes: '' })
 
   const [page, setPage] = useState(1)
