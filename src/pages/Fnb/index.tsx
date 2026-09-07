@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import {
   Utensils,
   Calendar as CalendarIcon,
@@ -101,6 +101,35 @@ export default function FnbPage() {
       setLoadingHistory(false)
     }
   }, [])
+
+  const orderModalBodyRef = useRef<HTMLDivElement>(null)
+  const historyModalBodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isOrderModalOpen || isHistoryModalOpen) {
+      document.body.style.overflow = 'hidden'
+      document.documentElement.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
+  }, [isOrderModalOpen, isHistoryModalOpen])
+
+  useEffect(() => {
+    if (isOrderModalOpen && orderModalBodyRef.current) {
+      orderModalBodyRef.current.scrollTop = 0
+    }
+  }, [isOrderModalOpen])
+
+  useEffect(() => {
+    if (isHistoryModalOpen && historyModalBodyRef.current) {
+      historyModalBodyRef.current.scrollTop = 0
+    }
+  }, [isHistoryModalOpen])
 
   const activePackage = menuData?.activePackage || menuData?.packageSubscription || menuData?.subscription
   const includedSlots = useMemo(
@@ -510,6 +539,60 @@ export default function FnbPage() {
     }
   })()
 
+  // Comprehensive package coverage check for a given slot ID or key under Personal Meal mode
+  const isTargetSlotCovered = useCallback(
+    (slotIdOrKey?: string): boolean => {
+      if (orderMode !== 'personal') return false
+      const targetId = slotIdOrKey || selectedMealSlotIds[0] || selectedMealSlotId || currentActiveSlot
+      if (!targetId) return false
+
+      const targetSlotObj = availableMealSlots.find(
+        (s) =>
+          s.id === targetId ||
+          s.globalMealSlotId === targetId ||
+          s.key === targetId ||
+          exactSlotMatch(s.label, targetId),
+      )
+
+      if (targetSlotObj) {
+        return isSlotCoveredInPkg(targetSlotObj)
+      }
+      return isSlotIncludedInPackage(targetId)
+    },
+    [
+      orderMode,
+      selectedMealSlotIds,
+      selectedMealSlotId,
+      currentActiveSlot,
+      availableMealSlots,
+      isSlotCoveredInPkg,
+      isSlotIncludedInPackage,
+    ],
+  )
+
+  // Check if any currently selected meal slot is in-package (under Personal Meal mode)
+  const isSelectedSlotInPackage = useMemo(() => {
+    return isTargetSlotCovered()
+  }, [isTargetSlotCovered])
+
+  // Automatically enforce room_service for in-package personal meal slots
+  useEffect(() => {
+    if (isSelectedSlotInPackage && serviceType !== 'room_service') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setServiceType('room_service')
+    }
+  }, [isSelectedSlotInPackage, serviceType])
+
+  // Automatically enforce single meal slot selection for Personal Meal mode
+  useEffect(() => {
+    if (orderMode === 'personal' && selectedMealSlotIds.length > 1) {
+      const activeSlot = selectedMealSlotIds[selectedMealSlotIds.length - 1]
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedMealSlotIds([activeSlot])
+      setSelectedMealSlotId(activeSlot)
+    }
+  }, [orderMode, selectedMealSlotIds])
+
   // Total order price calculation for selected dishes or entire meal slot
   const calculatedTotalAmount = useMemo(() => {
     if (orderMode !== 'special' && selectedMealSlotIds.length === 0) {
@@ -542,7 +625,7 @@ export default function FnbPage() {
 
     if (selectionType === 'entire_slot') {
       return activeSlotIds.reduce((totalSum, slotId) => {
-        const isCovered = isSlotIncludedInPackage(slotId)
+        const isCovered = isTargetSlotCovered(slotId)
         if (isCovered) return totalSum
         const targetSlotObj = availableMealSlots.find(
           (s) =>
@@ -578,8 +661,7 @@ export default function FnbPage() {
       const item = modalSlotDishes.find((m) => m.dishId === dishId || m.dish?.id === dishId)
       if (!item) return sum
       const dishObj: DishObj = item.dish || (item as unknown as DishObj)
-      const isCovered =
-        activeSlotIds.some((sId) => isSlotIncludedInPackage(sId)) && (item.isPackageCovered ?? !item.isOptional)
+      const isCovered = activeSlotIds.some((sId) => isTargetSlotCovered(sId))
       const unitPrice = isCovered ? 0 : item.effectivePrice || dishObj.basePrice || 0
       return sum + unitPrice * qty
     }, 0)
@@ -594,7 +676,7 @@ export default function FnbPage() {
     orderMode,
     specialSlotsData,
     selectedSpecialSlotId,
-    isSlotIncludedInPackage,
+    isTargetSlotCovered,
     menuData,
     isItemForSlot,
   ])
@@ -681,6 +763,8 @@ export default function FnbPage() {
           continue
         }
 
+        const isCovered = isTargetSlotCovered(slotId)
+
         const slotItemsPayload = Object.entries(slotDishQuantities).map(([dId, quantity]) => {
           const mItem = slotDishes.find((m) => m.dishId === dId || m.dish?.id === dId || m.id === dId)
           const price = Number(mItem?.dish?.price || mItem?.effectivePrice || mItem?.price || 0)
@@ -688,11 +772,10 @@ export default function FnbPage() {
             dishId: dId,
             menuItemId: mItem?.menuItemId || mItem?.id,
             quantity,
-            unitPrice: price,
+            unitPrice: isCovered ? 0 : price,
           }
         })
 
-        const isCovered = isSlotIncludedInPackage(slotId)
         let slotTotalAmount = 0
         if (!isCovered) {
           if (selectionType === 'entire_slot') {
@@ -1129,8 +1212,8 @@ export default function FnbPage() {
 
       {/* Make an Order Modal */}
       {isOrderModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-t-3xl sm:rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[90vh] flex flex-col my-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/80 shrink-0">
               <div className="flex items-center gap-2">
@@ -1145,7 +1228,7 @@ export default function FnbPage() {
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto space-y-5 flex-1">
+            <div ref={orderModalBodyRef} className="p-5 overflow-y-auto space-y-5 flex-1">
               {/* Step 1: Select Order Mode */}
               <div className="space-y-2">
                 <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider block">
@@ -1205,10 +1288,12 @@ export default function FnbPage() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider block">
-                      Select Meal Slot(s)
+                      {orderMode === 'personal' ? 'Select Meal Slot' : 'Select Meal Slot(s)'}
                     </span>
                     {orderMode === 'personal' ? (
-                      <span className="text-[10px] text-gray-500 font-medium">(Package slots disabled)</span>
+                      <span className="text-[10px] text-emerald-600 font-semibold">
+                        (Select one slot • In-package food is ₹0)
+                      </span>
                     ) : (
                       <span className="text-[10px] text-gray-500 font-medium">(Select one or multiple)</span>
                     )}
@@ -1219,43 +1304,48 @@ export default function FnbPage() {
                       const slotId = slot.globalMealSlotId || slot.id || slot.key
                       const isCoveredInPackage = orderMode === 'personal' && isSlotCoveredInPkg(slot)
                       const isSelected =
-                        selectedMealSlotIds.includes(slotId) ||
-                        selectedMealSlotIds.includes(slot.key) ||
-                        selectedMealSlotIds.some((id) => exactSlotMatch(slot.label, id))
+                        orderMode === 'personal'
+                          ? selectedMealSlotId === slotId ||
+                            selectedMealSlotIds[0] === slotId ||
+                            selectedMealSlotIds[0] === slot.key ||
+                            exactSlotMatch(slot.label, selectedMealSlotIds[0] || selectedMealSlotId)
+                          : selectedMealSlotIds.includes(slotId) ||
+                            selectedMealSlotIds.includes(slot.key) ||
+                            selectedMealSlotIds.some((id) => exactSlotMatch(slot.label, id))
 
                       return (
                         <button
                           type="button"
                           key={slot.key}
-                          disabled={isCoveredInPackage}
                           onClick={() => {
-                            if (isCoveredInPackage) {
-                              toast.info(`${slot.label} is already included in your active food package.`)
-                              return
-                            }
-                            setSelectedMealSlotIds((prev) => {
-                              const match = prev.some(
-                                (id) => id === slotId || id === slot.key || exactSlotMatch(slot.label, id),
-                              )
-                              if (match) {
-                                const next = prev.filter(
-                                  (id) => id !== slotId && id !== slot.key && !exactSlotMatch(slot.label, id),
+                            if (orderMode === 'personal') {
+                              setSelectedMealSlotId(slotId)
+                              setSelectedMealSlotIds([slotId])
+                            } else {
+                              setSelectedMealSlotIds((prev) => {
+                                const match = prev.some(
+                                  (id) => id === slotId || id === slot.key || exactSlotMatch(slot.label, id),
                                 )
-                                setSelectedMealSlotId(next[0] || '')
-                                return next
-                              } else {
-                                const next = [...prev, slotId]
-                                setSelectedMealSlotId(next[0] || '')
-                                return next
-                              }
-                            })
+                                if (match) {
+                                  const next = prev.filter(
+                                    (id) => id !== slotId && id !== slot.key && !exactSlotMatch(slot.label, id),
+                                  )
+                                  setSelectedMealSlotId(next[0] || '')
+                                  return next
+                                } else {
+                                  const next = [...prev, slotId]
+                                  setSelectedMealSlotId(next[0] || '')
+                                  return next
+                                }
+                              })
+                            }
                           }}
-                          className={`min-w-[100px] shrink-0 flex flex-col items-center justify-center gap-0.5 py-1.5 px-2.5 rounded-xl text-xs font-bold border transition-all ${
-                            isCoveredInPackage
-                              ? 'bg-gray-100 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-800 text-gray-400 dark:text-gray-600 opacity-60 cursor-not-allowed'
-                              : isSelected
-                                ? 'bg-[#005390] text-white border-[#005390] shadow-xs cursor-pointer'
-                                : 'bg-gray-50 dark:bg-neutral-800/60 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 cursor-pointer'
+                          className={`min-w-[105px] shrink-0 flex flex-col items-center justify-center gap-0.5 py-1.5 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#005390] text-white border-[#005390] shadow-xs'
+                              : isCoveredInPackage
+                                ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 hover:border-emerald-300'
+                                : 'bg-gray-50 dark:bg-neutral-800/60 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-300 hover:border-gray-300'
                           }`}
                         >
                           <div className="flex items-center gap-1">
@@ -1263,29 +1353,25 @@ export default function FnbPage() {
                             <span className="truncate">{slot.label}</span>
                           </div>
                           {isCoveredInPackage ? (
-                            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400">
-                              ✓ In Package
+                            <span
+                              className={`text-[9px] font-black ${
+                                isSelected ? 'text-emerald-200' : 'text-emerald-600 dark:text-emerald-400'
+                              }`}
+                            >
+                              ✓ In Package (₹0)
                             </span>
                           ) : (
-                            <span className="text-[9px] font-medium opacity-80">{slot.startTime}</span>
+                            <span
+                              className={`text-[9px] font-semibold ${
+                                isSelected ? 'text-amber-200' : 'text-amber-600 dark:text-amber-400'
+                              }`}
+                            >
+                              Standard Price
+                            </span>
                           )}
                         </button>
                       )
                     })}
-                  </div>
-                </div>
-              )}
-
-              {/* All Slots Covered Notice if applicable */}
-              {orderMode === 'personal' && availableMealSlots.every((s) => isSlotCoveredInPkg(s)) && (
-                <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-3 rounded-2xl flex items-start gap-2.5 text-emerald-900 dark:text-emerald-200">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div className="space-y-0.5 text-xs">
-                    <span className="font-bold block">All Daily Slots Included in Package</span>
-                    <p className="text-emerald-800 dark:text-emerald-300 text-[11px]">
-                      All daily meal slots are already covered under your active food package. You get all your meals
-                      automatically!
-                    </p>
                   </div>
                 </div>
               )}
@@ -1341,7 +1427,7 @@ export default function FnbPage() {
                       <div className="font-extrabold text-xs text-[#005390] dark:text-blue-300">
                         Entire {cutoffInfo.slotName} Slot
                       </div>
-                      {isSlotIncludedInPackage(selectedMealSlotId || currentActiveSlot) ? (
+                      {isTargetSlotCovered() ? (
                         <Badge className="bg-emerald-500 text-white font-bold text-[10px]">
                           Included in Package (Free)
                         </Badge>
@@ -1425,9 +1511,7 @@ export default function FnbPage() {
                         const dishObj: DishObj = item.dish || (item as unknown as DishObj)
                         const dishId = item.dishId || dishObj.id
                         const qty = dishQuantities[dishId] || 0
-                        const isCovered =
-                          isSlotIncludedInPackage(selectedMealSlotId || currentActiveSlot) &&
-                          (item.isPackageCovered ?? !item.isOptional)
+                        const isCovered = isTargetSlotCovered()
                         const price = isCovered ? 0 : item.effectivePrice || dishObj.basePrice || 0
                         const totalDishPrice = price * qty
 
@@ -1478,17 +1562,33 @@ export default function FnbPage() {
 
               {/* Step 3: Service Option Toggle */}
               <div className="space-y-2">
-                <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider block">
-                  3. Service Option
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider block">
+                    3. Service Option
+                  </span>
+                  {isSelectedSlotInPackage && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-extrabold">
+                      (Only Room Service available for in-package slots)
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setServiceType('dine_in')}
-                    className={`p-3 rounded-2xl border text-center font-bold text-xs transition-all cursor-pointer ${
-                      serviceType === 'dine_in'
-                        ? 'bg-blue-50 dark:bg-blue-950/40 border-[#005390] text-[#005390] dark:text-blue-300 ring-1 ring-[#005390]'
-                        : 'bg-gray-50 dark:bg-neutral-800/50 border-gray-200 dark:border-neutral-800 text-gray-600'
+                    disabled={isSelectedSlotInPackage}
+                    onClick={() => {
+                      if (isSelectedSlotInPackage) {
+                        toast.info('Only Room Service option is available for in-package personal meal slots.')
+                        return
+                      }
+                      setServiceType('dine_in')
+                    }}
+                    className={`p-3 rounded-2xl border text-center font-bold text-xs transition-all ${
+                      isSelectedSlotInPackage
+                        ? 'bg-gray-100 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-800 text-gray-400 dark:text-gray-600 opacity-50 cursor-not-allowed'
+                        : serviceType === 'dine_in'
+                          ? 'bg-blue-50 dark:bg-blue-950/40 border-[#005390] text-[#005390] dark:text-blue-300 ring-1 ring-[#005390] cursor-pointer'
+                          : 'bg-gray-50 dark:bg-neutral-800/50 border-gray-200 dark:border-neutral-800 text-gray-600 cursor-pointer'
                     }`}
                   >
                     🍽️ Dine In
@@ -1505,6 +1605,12 @@ export default function FnbPage() {
                     🚪 Room Service
                   </button>
                 </div>
+                {serviceType === 'room_service' && (
+                  <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-2 rounded-xl">
+                    🛵 Delivery charge will be charged by web admin upon employee assignment. In-package meal food price
+                    is ₹0.
+                  </p>
+                )}
               </div>
 
               {/* Step 4: Order Summary & Detailed Item Breakdown */}
@@ -1592,10 +1698,7 @@ export default function FnbPage() {
                           const dishObj: DishObj | undefined =
                             menuMatch?.dish || specialMatch?.dish || (menuMatch as unknown as DishObj | undefined)
                           const dishName = dishObj?.name || menuMatch?.name || 'Dish Item'
-                          const isCovered =
-                            orderMode === 'personal' &&
-                            isSlotIncludedInPackage(selectedMealSlotId || currentActiveSlot) &&
-                            (menuMatch?.isPackageCovered ?? !menuMatch?.isOptional)
+                          const isCovered = isTargetSlotCovered()
                           const unitPrice = isCovered
                             ? 0
                             : Number(
@@ -1674,8 +1777,8 @@ export default function FnbPage() {
 
       {/* Order History Modal */}
       {isHistoryModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[85vh] flex flex-col">
+        <div className="fixed inset-0 overflow-y-auto bg-black/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200 max-h-[85vh] flex flex-col my-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/80 shrink-0">
               <div className="flex items-center gap-2">
@@ -1691,7 +1794,7 @@ export default function FnbPage() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-4 overflow-y-auto space-y-3 flex-1">
+            <div ref={historyModalBodyRef} className="p-4 overflow-y-auto space-y-3 flex-1">
               {_loadingHistory ? (
                 <div className="text-center py-10 text-xs text-gray-500 font-medium">Loading order history...</div>
               ) : ordersHistory.length === 0 ? (
