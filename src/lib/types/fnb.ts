@@ -126,10 +126,10 @@ export interface FnbMenuResponse {
 }
 
 export interface FnbResidentOrderPayload {
-  orderType: 'personal' | 'guest' | 'special' | 'custom'
-  selectionType: 'dish' | 'slot' | 'entire_slot'
-  serviceType: 'dine_in' | 'room_service'
-  date: string
+  orderType?: 'personal' | 'guest' | 'special' | 'custom'
+  selectionType?: 'dish' | 'slot' | 'entire_slot'
+  serviceType?: 'dine_in' | 'room_service'
+  date?: string
   mealSlotId?: string
   specialMealSlotId?: string
   guestName?: string
@@ -142,6 +142,7 @@ export interface FnbResidentOrderPayload {
     unitPrice?: number
   }>
   totalAmount?: number
+  orders?: FnbResidentOrderPayload[]
 }
 
 export interface FnbPlaceOrderResult {
@@ -159,6 +160,32 @@ export interface FnbOrderHistoryItem {
   date: string
   createdAt: string
   totalAmount: number | string
+  deliveryCharge?: number | string
+  assignedEmployeeId?: string | null
+  assignedEmployee?: {
+    id: string
+    username?: string
+    email?: string
+    profile?: {
+      firstName?: string
+      lastName?: string
+      employeeCode?: string
+    }
+  }
+  delivery?: {
+    deliveryCharge?: number | string
+    deliveryStatus?: string
+    photoUrl?: string
+    employeeDetail?: {
+      firstName?: string
+      lastName?: string
+      employeeCode?: string
+    }
+    employee?: {
+      username?: string
+      email?: string
+    }
+  }
   details?: Array<{
     id: string
     quantity: number

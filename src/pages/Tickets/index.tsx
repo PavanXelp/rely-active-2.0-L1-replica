@@ -14,6 +14,12 @@ import {
   Calendar,
   Building2,
   ShieldAlert,
+  FileText,
+  Receipt,
+  Mic,
+  Image as ImageIcon,
+  Eye,
+  CheckCircle2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -37,10 +43,64 @@ export interface ResidentTicket {
   unitNumber?: string
   areaType?: 'IN_FLAT' | 'COMMON_AREA'
   assignedTo?: string
+  assignedToUserId?: string
   tatOption?: string
   customTatDeadline?: string | null
   resolutionNotes?: string | null
-  attachments?: string[]
+  attachments?: string[] | Record<string, unknown> | null
+}
+
+interface ParsedCompletion {
+  notes: string | null
+  amount: number | string | null
+  invoiceUrl: string | null
+  invoiceNumber: string | null
+  audioUrl: string | null
+  photos: string[]
+  completedByName: string | null
+  completedAt: string | null
+}
+
+function parseTicketCompletion(ticket: ResidentTicket | null): ParsedCompletion | null {
+  if (!ticket) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let atts: any = ticket.attachments
+  if (typeof atts === 'string') {
+    try {
+      atts = JSON.parse(atts)
+    } catch {
+      atts = null
+    }
+  }
+
+  const comp =
+    atts?.completion ||
+    (atts && (atts.photos || atts.audioUrl || atts.invoiceUrl || atts.amount !== undefined) ? atts : null)
+
+  const notes = comp?.resolutionNotes || ticket.resolutionNotes || null
+  const amount = comp?.amount ?? null
+  const invoiceUrl = comp?.invoiceUrl || null
+  const invoiceNumber = comp?.invoiceNumber || null
+  const audioUrl = comp?.audioUrl || null
+  const photos: string[] = Array.isArray(comp?.photos) ? comp.photos : Array.isArray(atts?.photos) ? atts.photos : []
+
+  const completedByName = comp?.completedByName || null
+  const completedAt = comp?.completedAt || null
+
+  if (!notes && amount === null && !invoiceUrl && !audioUrl && photos.length === 0) {
+    return null
+  }
+
+  return {
+    notes,
+    amount,
+    invoiceUrl,
+    invoiceNumber,
+    audioUrl,
+    photos,
+    completedByName,
+    completedAt,
+  }
 }
 
 // Primary Departments & Job Categories Mapping
@@ -725,47 +785,107 @@ export default function TicketsPage() {
 
             {/* Stepper Timeline Box */}
             <div className="border border-dashed border-border rounded-2xl p-4 bg-muted/30 space-y-3">
-              <div className="flex items-center justify-between relative px-2">
-                <div className="absolute left-6 right-6 top-3.5 h-0.5 bg-emerald-500/30 -z-0" />
+              {(() => {
+                const isStep2Done = Boolean(
+                  selectedTicket.assignedToUserId ||
+                  selectedTicket.assignedTo ||
+                  selectedTicket.status === 'IN_PROGRESS' ||
+                  selectedTicket.status === 'RESOLVED' ||
+                  selectedTicket.status === 'CLOSED',
+                )
+                const isStep3Done =
+                  selectedTicket.status === 'IN_PROGRESS' ||
+                  selectedTicket.status === 'RESOLVED' ||
+                  selectedTicket.status === 'CLOSED'
+                const isStep4Done = selectedTicket.status === 'RESOLVED' || selectedTicket.status === 'CLOSED'
 
-                {/* Step 1 */}
-                <div className="flex flex-col items-center z-10 space-y-1 text-center">
-                  <div className="w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center text-[10px] shadow-xs">
-                    <Check className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-[10px] font-bold text-foreground">Request Raised</span>
-                </div>
+                const stepIndex = isStep4Done ? 3 : isStep3Done ? 2 : isStep2Done ? 1 : 0
+                const activeWidthPercent = (stepIndex / 3) * 75
 
-                {/* Step 2 */}
-                <div className="flex flex-col items-center z-10 space-y-1 text-center">
-                  <div className="w-7 h-7 rounded-full bg-emerald-500 text-white font-bold flex items-center justify-center text-[10px] shadow-xs">
-                    <Check className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="text-[10px] font-bold text-foreground">Request Accepted</span>
-                </div>
+                return (
+                  <div className="grid grid-cols-4 relative">
+                    <div className="absolute top-3.5 -translate-y-1/2 left-[12.5%] right-[12.5%] h-0.5 bg-muted z-0" />
+                    <div
+                      className="absolute top-3.5 -translate-y-1/2 left-[12.5%] h-0.5 bg-[#005390] transition-all duration-300 z-0"
+                      style={{ width: `${activeWidthPercent}%` }}
+                    />
 
-                {/* Step 3 */}
-                <div className="flex flex-col items-center z-10 space-y-1 text-center">
-                  <div
-                    className={`w-7 h-7 rounded-full border-2 ${
-                      selectedTicket.status === 'CLOSED'
-                        ? 'border-emerald-500 bg-emerald-500 text-white'
-                        : 'border-[#005390] bg-white text-[#005390]'
-                    } font-bold flex items-center justify-center text-[10px] shadow-xs`}
-                  >
-                    {selectedTicket.status === 'CLOSED' ? <Check className="w-3.5 h-3.5" /> : '•'}
-                  </div>
-                  <span className="text-[10px] font-bold text-foreground">Ticket Closed</span>
-                </div>
+                    {/* Step 1: Request Raised */}
+                    <div className="flex flex-col items-center z-10 space-y-1 text-center">
+                      <div className="w-7 h-7 rounded-full bg-[#005390] text-white font-bold flex items-center justify-center text-[10px] shadow-xs">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-[10px] font-bold text-foreground">Request Raised</span>
+                    </div>
 
-                {/* Step 4 */}
-                <div className="flex flex-col items-center z-10 space-y-1 text-center">
-                  <div className="w-7 h-7 rounded-full border-2 border-emerald-500 bg-white text-emerald-600 font-bold flex items-center justify-center text-[10px] shadow-xs">
-                    •
+                    {/* Step 2: Assigned Task */}
+                    <div className="flex flex-col items-center z-10 space-y-1 text-center">
+                      <div
+                        className={`w-7 h-7 rounded-full border-2 ${
+                          isStep2Done
+                            ? 'border-[#005390] bg-[#005390] text-white'
+                            : 'border-border bg-background text-muted-foreground'
+                        } font-bold flex items-center justify-center text-[10px] shadow-xs`}
+                      >
+                        {isStep2Done ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                        )}
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold ${isStep2Done ? 'text-foreground' : 'text-muted-foreground'}`}
+                      >
+                        Assigned Task
+                      </span>
+                    </div>
+
+                    {/* Step 3: Request Accepted */}
+                    <div className="flex flex-col items-center z-10 space-y-1 text-center">
+                      <div
+                        className={`w-7 h-7 rounded-full border-2 ${
+                          isStep3Done
+                            ? 'border-[#005390] bg-[#005390] text-white'
+                            : 'border-border bg-background text-muted-foreground'
+                        } font-bold flex items-center justify-center text-[10px] shadow-xs`}
+                      >
+                        {isStep3Done ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                        )}
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold ${isStep3Done ? 'text-foreground' : 'text-muted-foreground'}`}
+                      >
+                        Request Accepted
+                      </span>
+                    </div>
+
+                    {/* Step 4: Ticket Closed */}
+                    <div className="flex flex-col items-center z-10 space-y-1 text-center">
+                      <div
+                        className={`w-7 h-7 rounded-full border-2 ${
+                          isStep4Done
+                            ? 'border-[#005390] bg-[#005390] text-white'
+                            : 'border-border bg-background text-muted-foreground'
+                        } font-bold flex items-center justify-center text-[10px] shadow-xs`}
+                      >
+                        {isStep4Done ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                        )}
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold ${isStep4Done ? 'text-foreground' : 'text-muted-foreground'}`}
+                      >
+                        Ticket Closed
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold text-foreground">Feedback</span>
-                </div>
-              </div>
+                )
+              })()}
             </div>
 
             {/* Detail Information List */}
@@ -814,6 +934,96 @@ export default function TicketsPage() {
                 {selectedTicket.description || selectedTicket.title}
               </p>
             </div>
+
+            {/* Work Resolution & Completion Section (Invoice, Voice Note, Photos, Notes) */}
+            {(() => {
+              const comp = parseTicketCompletion(selectedTicket)
+              if (!comp) return null
+
+              return (
+                <div className="rounded-2xl border border-emerald-300/80 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-foreground">Completion Report</span>
+                    </div>
+                    {comp.amount !== null && comp.amount !== undefined && (
+                      <Badge className="bg-emerald-600 text-white text-[11px] font-mono">
+                        ₹{typeof comp.amount === 'number' ? comp.amount.toLocaleString('en-IN') : comp.amount}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {comp.notes && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                        <FileText className="w-3 h-3 text-emerald-600" /> Resolution Note
+                      </span>
+                      <p className="text-xs p-2.5 rounded-xl bg-card border border-border/60 text-foreground whitespace-pre-line">
+                        {comp.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  {comp.audioUrl && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                        <Mic className="w-3 h-3 text-[#005390]" /> Voice Recording
+                      </span>
+                      <audio controls src={comp.audioUrl} className="w-full h-8 rounded-lg" preload="metadata">
+                        <track kind="captions" />
+                      </audio>
+                    </div>
+                  )}
+
+                  {comp.invoiceUrl && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                        <Receipt className="w-3 h-3 text-amber-600" /> Invoice / Bill
+                      </span>
+                      <a
+                        href={comp.invoiceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2.5 p-2 rounded-xl bg-card border border-border/60 hover:bg-muted/40 transition-colors"
+                      >
+                        <img
+                          src={comp.invoiceUrl}
+                          alt="Invoice"
+                          className="w-12 h-12 object-cover rounded-lg border border-border"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">Invoice Document</p>
+                          <span className="text-[10px] text-muted-foreground">Tap to view full bill</span>
+                        </div>
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                      </a>
+                    </div>
+                  )}
+
+                  {comp.photos && comp.photos.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
+                        <ImageIcon className="w-3 h-3 text-purple-600" /> Work Photos ({comp.photos.length})
+                      </span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {comp.photos.map((url, i) => (
+                          <a
+                            key={i}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block rounded-xl overflow-hidden border border-border aspect-video"
+                          >
+                            <img src={url} alt={`Work ${i + 1}`} className="w-full h-full object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Action Buttons for Active Ticket: Update TAT & Escalate Ticket */}
             {selectedTicket.status !== 'CLOSED' && selectedTicket.status !== 'RESOLVED' && (

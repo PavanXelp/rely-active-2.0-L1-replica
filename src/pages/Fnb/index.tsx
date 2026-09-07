@@ -75,6 +75,7 @@ export default function FnbPage() {
 
   // Selected Meal Slot & Special Slot
   const [selectedMealSlotId, setSelectedMealSlotId] = useState<string>('')
+  const [selectedMealSlotIds, setSelectedMealSlotIds] = useState<string[]>([])
   const [selectedSpecialSlotId, setSelectedSpecialSlotId] = useState<string>('')
 
   // Special Slots data for Special Meal mode
@@ -330,11 +331,15 @@ export default function FnbPage() {
     setDishQuantities({})
 
     const firstMissingSlot = availableMealSlots.find((s) => !isSlotCoveredInPkg(s))
-    if (firstMissingSlot) {
-      setSelectedMealSlotId(firstMissingSlot.globalMealSlotId || firstMissingSlot.id || firstMissingSlot.key)
-    } else if (menuData?.propertyMealSlots && menuData.propertyMealSlots.length > 0) {
-      setSelectedMealSlotId(menuData.propertyMealSlots[0].globalMealSlotId || menuData.propertyMealSlots[0].id)
-    }
+
+    const defaultSlotId = firstMissingSlot
+      ? firstMissingSlot.globalMealSlotId || firstMissingSlot.id || firstMissingSlot.key
+      : menuData?.propertyMealSlots && menuData.propertyMealSlots.length > 0
+        ? menuData.propertyMealSlots[0].globalMealSlotId || menuData.propertyMealSlots[0].id
+        : availableMealSlots[0]?.key || 'breakfast'
+
+    setSelectedMealSlotId(defaultSlotId)
+    setSelectedMealSlotIds([defaultSlotId])
 
     void fetchSpecialMenu()
   }
@@ -407,16 +412,24 @@ export default function FnbPage() {
 
   // Dishes for the meal slot selected inside the order modal
   const modalSlotDishes = useMemo(() => {
-    const targetSlotObj = availableMealSlots.find(
+    if (orderMode === 'special') return []
+
+    if (selectedMealSlotIds.length === 0) return []
+
+    const activeSlotIds = selectedMealSlotIds
+    const targetSlotObjs = availableMealSlots.filter(
       (s) =>
-        s.id === selectedMealSlotId ||
-        s.globalMealSlotId === selectedMealSlotId ||
-        s.key === selectedMealSlotId ||
-        exactSlotMatch(s.label, selectedMealSlotId),
+        activeSlotIds.includes(s.id) ||
+        activeSlotIds.includes(s.globalMealSlotId || '') ||
+        activeSlotIds.includes(s.key) ||
+        activeSlotIds.some((id) => exactSlotMatch(s.label, id)),
     )
-    const slotKeyToUse = targetSlotObj?.key || selectedMealSlotId || currentActiveSlot
+    const slotKeysToUse = targetSlotObjs.length > 0 ? targetSlotObjs.map((s) => s.key) : activeSlotIds
+
     if (menuData?.menuItems) {
-      const raw = menuData.menuItems.filter((m) => isItemForSlot(m.mealSlot, m.mealSlotId, slotKeyToUse))
+      const raw = menuData.menuItems.filter((m) =>
+        slotKeysToUse.some((sk) => isItemForSlot(m.mealSlot, m.mealSlotId, sk)),
+      )
       const map = new Map<string, MenuItem>()
       raw.forEach((item) => {
         const key = item.dishId || item.id
@@ -424,32 +437,24 @@ export default function FnbPage() {
       })
       return Array.from(map.values())
     }
-    return currentSlotDishes
-  }, [availableMealSlots, selectedMealSlotId, currentActiveSlot, menuData, isItemForSlot, currentSlotDishes])
+    return []
+  }, [availableMealSlots, selectedMealSlotIds, menuData, isItemForSlot, orderMode])
 
-  // 2-Hour Cutoff Time Check for the selected slot and order date
-  const cutoffInfo = useMemo(() => {
-    const targetSlotObj =
-      availableMealSlots.find(
-        (s) =>
-          s.id === selectedMealSlotId ||
-          s.globalMealSlotId === selectedMealSlotId ||
-          s.key === selectedMealSlotId ||
-          exactSlotMatch(s.label, selectedMealSlotId),
-      ) || availableMealSlots.find((s) => s.key === currentActiveSlot)
-
-    if (!targetSlotObj || !targetSlotObj.startTime) {
+  // 2-Hour Cutoff Time Check for the selected slot(s) and order date
+  const cutoffInfo = (() => {
+    if (orderMode === 'special' || selectedMealSlotIds.length === 0) {
       return { isPassed: false, slotName: '', startTime: '', cutoffTimeFormatted: '' }
     }
 
-    const effectiveDate = orderMode === 'special' || orderMode === 'personal' ? todayStr : orderDate
+    const activeSlotIds = selectedMealSlotIds
+    const effectiveDate = orderMode === 'personal' ? todayStr : orderDate
     const today = todayStr
 
     if (effectiveDate < today) {
       return {
         isPassed: true,
-        slotName: targetSlotObj.label,
-        startTime: targetSlotObj.startTime,
+        slotName: 'Past Date',
+        startTime: '',
         cutoffTimeFormatted: 'Past Date',
       }
     }
@@ -457,51 +462,62 @@ export default function FnbPage() {
     if (effectiveDate > today) {
       return {
         isPassed: false,
-        slotName: targetSlotObj.label,
-        startTime: targetSlotObj.startTime,
-        cutoffTimeFormatted: '',
-      }
-    }
-
-    // Date is TODAY: check 2-hour cutoff rule (slotStart - 2 hours)
-    const [startHourStr, startMinStr] = targetSlotObj.startTime.split(':')
-    const startHour = parseInt(startHourStr || '7', 10)
-    const startMin = parseInt(startMinStr || '30', 10)
-
-    if (isNaN(startHour) || isNaN(startMin)) {
-      return {
-        isPassed: false,
-        slotName: targetSlotObj.label,
-        startTime: targetSlotObj.startTime,
+        slotName: '',
+        startTime: '',
         cutoffTimeFormatted: '',
       }
     }
 
     const now = new Date()
     const currentTotalMin = now.getHours() * 60 + now.getMinutes()
-    const slotStartTotalMin = startHour * 60 + startMin
-    const cutoffTotalMin = slotStartTotalMin - 120
 
-    const isPassed = currentTotalMin > cutoffTotalMin
+    for (const slotId of activeSlotIds) {
+      const targetSlotObj = availableMealSlots.find(
+        (s) => s.id === slotId || s.globalMealSlotId === slotId || s.key === slotId || exactSlotMatch(s.label, slotId),
+      )
+      if (!targetSlotObj || !targetSlotObj.startTime) continue
 
-    const cutoffHour = Math.floor(Math.max(0, cutoffTotalMin) / 60)
-    const cutoffMin = Math.max(0, cutoffTotalMin) % 60
-    const period = cutoffHour >= 12 ? 'PM' : 'AM'
-    const displayHour = cutoffHour % 12 || 12
-    const cutoffTimeFormatted = `${String(displayHour).padStart(2, '0')}:${String(cutoffMin).padStart(2, '0')} ${period}`
+      const [startHourStr, startMinStr] = targetSlotObj.startTime.split(':')
+      const startHour = parseInt(startHourStr || '7', 10)
+      const startMin = parseInt(startMinStr || '30', 10)
+
+      if (isNaN(startHour) || isNaN(startMin)) continue
+
+      const slotStartTotalMin = startHour * 60 + startMin
+      const cutoffTotalMin = slotStartTotalMin - 120
+
+      if (currentTotalMin > cutoffTotalMin) {
+        const cutoffHour = Math.floor(Math.max(0, cutoffTotalMin) / 60)
+        const cutoffMin = Math.max(0, cutoffTotalMin) % 60
+        const period = cutoffHour >= 12 ? 'PM' : 'AM'
+        const displayHour = cutoffHour % 12 || 12
+        const cutoffTimeFormatted = `${String(displayHour).padStart(2, '0')}:${String(cutoffMin).padStart(2, '0')} ${period}`
+
+        return {
+          isPassed: true,
+          slotName: targetSlotObj.label,
+          startTime: targetSlotObj.startTime,
+          cutoffTimeFormatted,
+        }
+      }
+    }
 
     return {
-      isPassed,
-      slotName: targetSlotObj.label,
-      startTime: targetSlotObj.startTime,
-      cutoffTimeFormatted,
+      isPassed: false,
+      slotName: '',
+      startTime: '',
+      cutoffTimeFormatted: '',
     }
-  }, [selectedMealSlotId, orderDate, orderMode, todayStr, availableMealSlots, currentActiveSlot])
+  })()
 
   // Total order price calculation for selected dishes or entire meal slot
   const calculatedTotalAmount = useMemo(() => {
-    if (selectionType === 'entire_slot') {
-      if (orderMode === 'special') {
+    if (orderMode !== 'special' && selectedMealSlotIds.length === 0) {
+      return 0
+    }
+
+    if (orderMode === 'special') {
+      if (selectionType === 'entire_slot') {
         const targetSpecialSlot = specialSlotsData.find(
           (s) => s.id === selectedSpecialSlotId || s.globalSpecialSlotId === selectedSpecialSlotId,
         )
@@ -512,41 +528,6 @@ export default function FnbPage() {
           if (dishesSum > 0) return dishesSum
         }
       }
-
-      const isCovered = isSlotIncludedInPackage(selectedMealSlotId || currentActiveSlot)
-      if (isCovered) return 0
-      const targetSlotObj =
-        availableMealSlots.find(
-          (s) =>
-            s.id === selectedMealSlotId ||
-            s.globalMealSlotId === selectedMealSlotId ||
-            s.key === selectedMealSlotId ||
-            exactSlotMatch(s.label, selectedMealSlotId),
-        ) || availableMealSlots.find((s) => s.key === currentActiveSlot)
-
-      const slotPrice = Number(targetSlotObj?.price || 0)
-      if (slotPrice > 0) return slotPrice
-
-      const pSlot =
-        menuData?.propertyMealSlots?.find(
-          (s) =>
-            s.id === selectedMealSlotId ||
-            s.globalMealSlotId === selectedMealSlotId ||
-            (s.slotKey && s.slotKey === selectedMealSlotId) ||
-            exactSlotMatch(s.name, selectedMealSlotId),
-        ) || menuData?.propertyMealSlots?.find((s) => exactSlotMatch(s.name, currentActiveSlot))
-
-      const directPrice = Number(pSlot?.price || 0)
-      if (directPrice > 0) return directPrice
-
-      return modalSlotDishes.reduce((sum, item) => {
-        const dishObj: DishObj = item.dish || (item as unknown as DishObj)
-        const price = item.effectivePrice ?? dishObj.basePrice ?? 0
-        return sum + price
-      }, 0)
-    }
-
-    if (orderMode === 'special') {
       return Object.entries(dishQuantities).reduce((sum, [dishId, qty]) => {
         const sDish = specialSlotsData
           .flatMap((sSlot) => sSlot.specialDishes || [])
@@ -556,17 +537,55 @@ export default function FnbPage() {
       }, 0)
     }
 
+    const activeSlotIds =
+      selectedMealSlotIds.length > 0 ? selectedMealSlotIds : [selectedMealSlotId || currentActiveSlot]
+
+    if (selectionType === 'entire_slot') {
+      return activeSlotIds.reduce((totalSum, slotId) => {
+        const isCovered = isSlotIncludedInPackage(slotId)
+        if (isCovered) return totalSum
+        const targetSlotObj = availableMealSlots.find(
+          (s) =>
+            s.id === slotId || s.globalMealSlotId === slotId || s.key === slotId || exactSlotMatch(s.label, slotId),
+        )
+        const slotPrice = Number(targetSlotObj?.price || 0)
+        if (slotPrice > 0) return totalSum + slotPrice
+
+        const pSlot = menuData?.propertyMealSlots?.find(
+          (s) =>
+            s.id === slotId ||
+            s.globalMealSlotId === slotId ||
+            (s.slotKey && s.slotKey === slotId) ||
+            exactSlotMatch(s.name, slotId),
+        )
+        const directPrice = Number(pSlot?.price || 0)
+        if (directPrice > 0) return totalSum + directPrice
+
+        const slotKey = targetSlotObj?.key || slotId
+        const slotDishes = menuData?.menuItems
+          ? menuData.menuItems.filter((m) => isItemForSlot(m.mealSlot, m.mealSlotId, slotKey))
+          : []
+        const dishesSum = slotDishes.reduce((sum, item) => {
+          const dishObj: DishObj = item.dish || (item as unknown as DishObj)
+          const price = item.effectivePrice ?? dishObj.basePrice ?? 0
+          return sum + price
+        }, 0)
+        return totalSum + dishesSum
+      }, 0)
+    }
+
     return Object.entries(dishQuantities).reduce((sum, [dishId, qty]) => {
       const item = modalSlotDishes.find((m) => m.dishId === dishId || m.dish?.id === dishId)
       if (!item) return sum
       const dishObj: DishObj = item.dish || (item as unknown as DishObj)
       const isCovered =
-        isSlotIncludedInPackage(selectedMealSlotId || currentActiveSlot) && (item.isPackageCovered ?? !item.isOptional)
+        activeSlotIds.some((sId) => isSlotIncludedInPackage(sId)) && (item.isPackageCovered ?? !item.isOptional)
       const unitPrice = isCovered ? 0 : item.effectivePrice || dishObj.basePrice || 0
       return sum + unitPrice * qty
     }, 0)
   }, [
     selectionType,
+    selectedMealSlotIds,
     selectedMealSlotId,
     currentActiveSlot,
     availableMealSlots,
@@ -576,7 +595,8 @@ export default function FnbPage() {
     specialSlotsData,
     selectedSpecialSlotId,
     isSlotIncludedInPackage,
-    menuData?.propertyMealSlots,
+    menuData,
+    isItemForSlot,
   ])
 
   const handlePlaceOrder = async () => {
@@ -600,8 +620,8 @@ export default function FnbPage() {
     try {
       setSubmittingOrder(true)
 
-      const itemsPayload = Object.entries(dishQuantities).map(([dishId, quantity]) => {
-        if (orderMode === 'special') {
+      if (orderMode === 'special') {
+        const itemsPayload = Object.entries(dishQuantities).map(([dishId, quantity]) => {
           const targetSpecialSlot = specialSlotsData.find((s) => s.id === selectedSpecialSlotId)
           const specDish = targetSpecialSlot?.specialDishes?.find((sd) => sd.dishId === dishId)
           return {
@@ -610,31 +630,103 @@ export default function FnbPage() {
             quantity,
             unitPrice: Number(specDish?.price || 0),
           }
-        }
-        const mItem = modalSlotDishes.find((m) => m.dishId === dishId || m.dish?.id === dishId)
-        const price = Number(mItem?.dish?.price || mItem?.price || 0)
-        return {
-          dishId,
-          menuItemId: mItem?.menuItemId || mItem?.id,
-          quantity,
-          unitPrice: price,
-        }
-      })
+        })
 
-      const payload: FnbResidentOrderPayload = {
-        orderType: orderMode,
-        selectionType,
-        serviceType,
-        date: orderMode === 'special' || orderMode === 'personal' ? todayStr : orderDate,
-        mealSlotId: selectedMealSlotId || undefined,
-        specialMealSlotId: orderMode === 'special' ? selectedSpecialSlotId : undefined,
-        items: selectionType === 'dish' ? itemsPayload : [],
-        totalAmount: calculatedTotalAmount,
+        const payload: FnbResidentOrderPayload = {
+          orderType: orderMode,
+          selectionType,
+          serviceType,
+          date: todayStr,
+          specialMealSlotId: selectedSpecialSlotId || undefined,
+          items: selectionType === 'dish' ? itemsPayload : [],
+          totalAmount: calculatedTotalAmount,
+        }
+
+        const res = await fnbMobileService.placeOrder(payload)
+        if (res?.success) {
+          toast.success('Special meal order placed successfully! 🎉')
+          setIsOrderModalOpen(false)
+          setDishQuantities({})
+          void fetchOrdersHistory()
+        } else {
+          toast.error(res?.message || 'Failed to place order')
+        }
+        return
       }
 
-      const res = await fnbMobileService.placeOrder(payload)
+      // Process meal slots individually
+      const activeSlotIds =
+        selectedMealSlotIds.length > 0 ? selectedMealSlotIds : [selectedMealSlotId || currentActiveSlot]
+      const orderPayloads: FnbResidentOrderPayload[] = []
+
+      for (const slotId of activeSlotIds) {
+        const targetSlotObj = availableMealSlots.find(
+          (s) =>
+            s.id === slotId || s.globalMealSlotId === slotId || s.key === slotId || exactSlotMatch(s.label, slotId),
+        )
+        const slotKey = targetSlotObj?.key || slotId
+        const slotDishes = menuData?.menuItems
+          ? menuData.menuItems.filter((m) => isItemForSlot(m.mealSlot, m.mealSlotId, slotKey))
+          : modalSlotDishes
+
+        const slotDishIds = new Set(slotDishes.map((d) => d.dishId || d.dish?.id || d.id))
+        const slotDishQuantities: Record<string, number> = {}
+        Object.entries(dishQuantities).forEach(([dId, q]) => {
+          if (slotDishIds.has(dId) && q > 0) {
+            slotDishQuantities[dId] = q
+          }
+        })
+
+        if (selectionType === 'dish' && Object.keys(slotDishQuantities).length === 0 && activeSlotIds.length > 1) {
+          continue
+        }
+
+        const slotItemsPayload = Object.entries(slotDishQuantities).map(([dId, quantity]) => {
+          const mItem = slotDishes.find((m) => m.dishId === dId || m.dish?.id === dId || m.id === dId)
+          const price = Number(mItem?.dish?.price || mItem?.effectivePrice || mItem?.price || 0)
+          return {
+            dishId: dId,
+            menuItemId: mItem?.menuItemId || mItem?.id,
+            quantity,
+            unitPrice: price,
+          }
+        })
+
+        const isCovered = isSlotIncludedInPackage(slotId)
+        let slotTotalAmount = 0
+        if (!isCovered) {
+          if (selectionType === 'entire_slot') {
+            slotTotalAmount =
+              Number(targetSlotObj?.price || 0) ||
+              slotDishes.reduce((sum, item) => sum + (item.effectivePrice ?? item.dish?.basePrice ?? 0), 0)
+          } else {
+            slotTotalAmount = slotItemsPayload.reduce((sum, item) => sum + (item.unitPrice || 0) * item.quantity, 0)
+          }
+        }
+
+        orderPayloads.push({
+          orderType: orderMode,
+          selectionType,
+          serviceType,
+          date: orderMode === 'personal' ? todayStr : orderDate,
+          mealSlotId: slotId,
+          items: selectionType === 'dish' ? slotItemsPayload : [],
+          totalAmount: slotTotalAmount,
+        })
+      }
+
+      if (orderPayloads.length === 0) {
+        toast.error('Please select at least one dish item')
+        return
+      }
+
+      const res =
+        orderPayloads.length === 1
+          ? await fnbMobileService.placeOrder(orderPayloads[0])
+          : await fnbMobileService.placeOrder({ orders: orderPayloads })
+
       if (res?.success) {
-        toast.success('Meal order placed successfully! 🎉')
+        toast.success('Meal order(s) placed successfully! 🎉')
         setIsOrderModalOpen(false)
         setDishQuantities({})
         void fetchOrdersHistory()
@@ -1109,62 +1201,80 @@ export default function FnbPage() {
               )}
 
               {/* Meal Slot Selector inside Modal */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider block">
-                    Select Meal Slot
-                  </span>
-                  {orderMode === 'personal' && (
-                    <span className="text-[10px] text-gray-500 font-medium">(Package slots disabled)</span>
-                  )}
-                </div>
+              {orderMode !== 'special' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider block">
+                      Select Meal Slot(s)
+                    </span>
+                    {orderMode === 'personal' ? (
+                      <span className="text-[10px] text-gray-500 font-medium">(Package slots disabled)</span>
+                    ) : (
+                      <span className="text-[10px] text-gray-500 font-medium">(Select one or multiple)</span>
+                    )}
+                  </div>
 
-                <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1.5">
-                  {availableMealSlots.map((slot) => {
-                    const isCoveredInPackage = orderMode === 'personal' && isSlotCoveredInPkg(slot)
-                    const isSelected =
-                      selectedMealSlotId === slot.id ||
-                      selectedMealSlotId === slot.globalMealSlotId ||
-                      selectedMealSlotId === slot.key ||
-                      exactSlotMatch(slot.label, selectedMealSlotId)
+                  <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1.5">
+                    {availableMealSlots.map((slot) => {
+                      const slotId = slot.globalMealSlotId || slot.id || slot.key
+                      const isCoveredInPackage = orderMode === 'personal' && isSlotCoveredInPkg(slot)
+                      const isSelected =
+                        selectedMealSlotIds.includes(slotId) ||
+                        selectedMealSlotIds.includes(slot.key) ||
+                        selectedMealSlotIds.some((id) => exactSlotMatch(slot.label, id))
 
-                    return (
-                      <button
-                        type="button"
-                        key={slot.key}
-                        disabled={isCoveredInPackage}
-                        onClick={() => {
-                          if (isCoveredInPackage) {
-                            toast.info(`${slot.label} is already included in your active food package.`)
-                            return
-                          }
-                          setSelectedMealSlotId(slot.globalMealSlotId || slot.id || slot.key)
-                          setDishQuantities({})
-                        }}
-                        className={`min-w-[100px] shrink-0 flex flex-col items-center justify-center gap-0.5 py-1.5 px-2.5 rounded-xl text-xs font-bold border transition-all ${
-                          isCoveredInPackage
-                            ? 'bg-gray-100 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-800 text-gray-400 dark:text-gray-600 opacity-60 cursor-not-allowed'
-                            : isSelected
-                              ? 'bg-[#005390] text-white border-[#005390] shadow-xs cursor-pointer'
-                              : 'bg-gray-50 dark:bg-neutral-800/60 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 cursor-pointer'
-                        }`}
-                      >
-                        <div className="flex items-center gap-1">
-                          <span>{slot.icon}</span>
-                          <span className="truncate">{slot.label}</span>
-                        </div>
-                        {isCoveredInPackage ? (
-                          <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400">
-                            ✓ In Package
-                          </span>
-                        ) : (
-                          <span className="text-[9px] font-medium opacity-80">{slot.startTime}</span>
-                        )}
-                      </button>
-                    )
-                  })}
+                      return (
+                        <button
+                          type="button"
+                          key={slot.key}
+                          disabled={isCoveredInPackage}
+                          onClick={() => {
+                            if (isCoveredInPackage) {
+                              toast.info(`${slot.label} is already included in your active food package.`)
+                              return
+                            }
+                            setSelectedMealSlotIds((prev) => {
+                              const match = prev.some(
+                                (id) => id === slotId || id === slot.key || exactSlotMatch(slot.label, id),
+                              )
+                              if (match) {
+                                const next = prev.filter(
+                                  (id) => id !== slotId && id !== slot.key && !exactSlotMatch(slot.label, id),
+                                )
+                                setSelectedMealSlotId(next[0] || '')
+                                return next
+                              } else {
+                                const next = [...prev, slotId]
+                                setSelectedMealSlotId(next[0] || '')
+                                return next
+                              }
+                            })
+                          }}
+                          className={`min-w-[100px] shrink-0 flex flex-col items-center justify-center gap-0.5 py-1.5 px-2.5 rounded-xl text-xs font-bold border transition-all ${
+                            isCoveredInPackage
+                              ? 'bg-gray-100 dark:bg-neutral-800/40 border-gray-200 dark:border-neutral-800 text-gray-400 dark:text-gray-600 opacity-60 cursor-not-allowed'
+                              : isSelected
+                                ? 'bg-[#005390] text-white border-[#005390] shadow-xs cursor-pointer'
+                                : 'bg-gray-50 dark:bg-neutral-800/60 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1">
+                            <span>{slot.icon}</span>
+                            <span className="truncate">{slot.label}</span>
+                          </div>
+                          {isCoveredInPackage ? (
+                            <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400">
+                              ✓ In Package
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-medium opacity-80">{slot.startTime}</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* All Slots Covered Notice if applicable */}
               {orderMode === 'personal' && availableMealSlots.every((s) => isSlotCoveredInPkg(s)) && (
@@ -1396,6 +1506,126 @@ export default function FnbPage() {
                   </button>
                 </div>
               </div>
+
+              {/* Step 4: Order Summary & Detailed Item Breakdown */}
+              <div className="bg-slate-50 dark:bg-neutral-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-neutral-700 space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-neutral-700 pb-2">
+                  <span className="text-xs font-black text-gray-900 dark:text-gray-100 flex items-center gap-1.5 uppercase tracking-wider">
+                    📋 Order Summary Breakdown
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] font-bold bg-blue-50 text-[#005390] border-blue-200 capitalize"
+                  >
+                    {orderMode} Meal
+                  </Badge>
+                </div>
+
+                {/* Selected Meal Slots */}
+                {orderMode !== 'special' && (
+                  <div className="text-xs space-y-1">
+                    <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wide block">
+                      Selected Meal Slot(s):
+                    </span>
+                    {selectedMealSlotIds.length === 0 ? (
+                      <span className="text-amber-600 dark:text-amber-400 font-bold text-xs block">
+                        ⚠️ No meal slot selected. Please tap a meal slot above.
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableMealSlots
+                          .filter(
+                            (s) =>
+                              selectedMealSlotIds.includes(s.id) ||
+                              selectedMealSlotIds.includes(s.globalMealSlotId || '') ||
+                              selectedMealSlotIds.includes(s.key) ||
+                              selectedMealSlotIds.some((id) => exactSlotMatch(s.label, id)),
+                          )
+                          .map((s) => (
+                            <span
+                              key={s.key}
+                              className="inline-flex items-center gap-1 text-[11px] font-extrabold bg-blue-100/80 text-[#005390] px-2.5 py-0.5 rounded-lg border border-blue-200"
+                            >
+                              <span>{s.icon}</span>
+                              <span>{s.label}</span>
+                              <span className="text-[10px] opacity-75 font-normal">({getSlotTiming(s.key)})</span>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Selected Items & Quantities */}
+                <div className="text-xs space-y-1.5 pt-1 border-t border-slate-200/60 dark:border-neutral-700/60">
+                  <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wide block">
+                    Selected Items & Quantities:
+                  </span>
+
+                  {selectionType === 'entire_slot' ? (
+                    <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-neutral-900 p-2 rounded-xl border border-gray-200/80">
+                      🍱 Entire Meal Slot Package ({modalSlotDishes.length} dishes included)
+                    </div>
+                  ) : Object.keys(dishQuantities).filter((k) => (dishQuantities[k] || 0) > 0).length === 0 ? (
+                    <div className="text-xs italic text-gray-400">
+                      No dishes selected yet. Use the + / - buttons above to select quantities.
+                    </div>
+                  ) : (
+                    <div className="space-y-1 bg-white dark:bg-neutral-900 p-2.5 rounded-xl border border-gray-200/80 dark:border-neutral-800">
+                      {Object.entries(dishQuantities)
+                        .filter(([, qty]) => qty > 0)
+                        .map(([dishId, qty]) => {
+                          const specialMatch =
+                            orderMode === 'special'
+                              ? specialSlotsData
+                                  .flatMap((sSlot) => sSlot.specialDishes || [])
+                                  .find((sd) => sd.dishId === dishId || sd.dish?.id === dishId)
+                              : undefined
+
+                          const menuMatch =
+                            orderMode !== 'special'
+                              ? modalSlotDishes.find(
+                                  (m) => m.dishId === dishId || m.dish?.id === dishId || m.id === dishId,
+                                )
+                              : undefined
+
+                          const dishObj: DishObj | undefined =
+                            menuMatch?.dish || specialMatch?.dish || (menuMatch as unknown as DishObj | undefined)
+                          const dishName = dishObj?.name || menuMatch?.name || 'Dish Item'
+                          const isCovered =
+                            orderMode === 'personal' &&
+                            isSlotIncludedInPackage(selectedMealSlotId || currentActiveSlot) &&
+                            (menuMatch?.isPackageCovered ?? !menuMatch?.isOptional)
+                          const unitPrice = isCovered
+                            ? 0
+                            : Number(
+                                menuMatch?.effectivePrice ||
+                                  specialMatch?.price ||
+                                  dishObj?.basePrice ||
+                                  menuMatch?.price ||
+                                  0,
+                              )
+                          const lineTotal = unitPrice * qty
+
+                          return (
+                            <div
+                              key={dishId}
+                              className="flex items-center justify-between text-xs py-1 border-b border-gray-100 dark:border-neutral-800 last:border-0"
+                            >
+                              <span className="font-bold text-gray-800 dark:text-gray-200">
+                                {dishName}{' '}
+                                <span className="text-[#005390] dark:text-blue-400 font-black ml-1">x {qty}</span>
+                              </span>
+                              <span className="font-extrabold text-gray-900 dark:text-gray-100">
+                                {isCovered ? 'Included (₹0)' : `₹${lineTotal}`}
+                              </span>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Modal Footer & Submission */}
@@ -1420,7 +1650,8 @@ export default function FnbPage() {
                   disabled={
                     submittingOrder ||
                     cutoffInfo.isPassed ||
-                    (selectionType === 'dish' && Object.keys(dishQuantities).length === 0)
+                    (orderMode !== 'special' && selectedMealSlotIds.length === 0) ||
+                    (selectionType === 'dish' && Object.values(dishQuantities).every((q) => q === 0))
                   }
                   className="bg-[#005390] hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
                 >
@@ -1573,13 +1804,48 @@ export default function FnbPage() {
                         </div>
                       )}
 
-                      {/* Order Footer: Total */}
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-200/80 dark:border-neutral-800 text-xs">
-                        <span className="font-bold text-gray-500">Total Amount</span>
-                        <span className="font-black text-[#005390] dark:text-blue-400 text-sm">
-                          {Number(order.totalAmount) === 0 ? 'Free (₹0)' : `₹${order.totalAmount}`}
-                        </span>
-                      </div>
+                      {/* Assigned Delivery Employee Info (Room Service) */}
+                      {(() => {
+                        const assignedEmp = order.assignedEmployee?.profile
+                          ? `${order.assignedEmployee.profile.firstName || ''} ${order.assignedEmployee.profile.lastName || ''}`.trim()
+                          : order.assignedEmployee?.username ||
+                            (order.delivery?.employeeDetail
+                              ? `${order.delivery.employeeDetail.firstName || ''} ${order.delivery.employeeDetail.lastName || ''}`.trim()
+                              : order.delivery?.employee?.username)
+
+                        if (order.serviceType === 'room_service' && assignedEmp) {
+                          return (
+                            <div className="flex items-center justify-between text-[11px] bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/50 px-3 py-1.5 rounded-xl text-amber-900 dark:text-amber-300 font-semibold">
+                              <span>🛵 Assigned Delivery Agent:</span>
+                              <span className="font-extrabold">{assignedEmp}</span>
+                            </div>
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Order Footer: Total & Delivery Charge Breakdown */}
+                      {(() => {
+                        const deliveryChargeNum = Number(order.deliveryCharge || order.delivery?.deliveryCharge || 0)
+                        return (
+                          <div className="pt-2 border-t border-gray-200/80 dark:border-neutral-800 space-y-1 text-xs">
+                            {deliveryChargeNum > 0 && (
+                              <div className="flex items-center justify-between text-gray-500 text-[11px]">
+                                <span>Delivery Charge</span>
+                                <span className="font-bold text-amber-700 dark:text-amber-400">
+                                  +₹{deliveryChargeNum.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between font-bold text-gray-500">
+                              <span>Total Amount</span>
+                              <span className="font-black text-[#005390] dark:text-blue-400 text-sm">
+                                {Number(order.totalAmount) === 0 ? 'Free (₹0)' : `₹${order.totalAmount}`}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                   )
                 })
