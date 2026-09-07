@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Sparkles,
   Calendar,
+  CalendarDays,
   Clock,
   QrCode,
   CheckCircle2,
@@ -86,7 +87,7 @@ export default function Dashboard() {
           <h3 className="text-xs font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">
             Quick Access Services
           </h3>
-          <span className="text-[10px] font-bold text-muted-foreground">4 Core Modules</span>
+          <span className="text-[10px] font-bold text-muted-foreground">5 Core Modules</span>
         </div>
 
         {/* 1. Food & Beverage (FnB) Card */}
@@ -139,7 +140,7 @@ export default function Dashboard() {
 
         {/* 2. Tickets (Helpdesk & Maintenance) Card */}
         <Card
-          onClick={() => setTicketModalOpen(true)}
+          onClick={() => navigate('/tickets')}
           className="rounded-3xl border border-amber-200 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-amber-400 transition-all cursor-pointer group"
         >
           <CardContent className="p-4 space-y-2.5">
@@ -221,7 +222,49 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* 4. My Profile Card */}
+        {/* 4. Events Card */}
+        <Card
+          onClick={() => navigate('/events')}
+          className="rounded-3xl border border-rose-200 dark:border-rose-900/40 bg-gradient-to-br from-rose-50/60 via-white to-pink-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-rose-400 transition-all cursor-pointer group"
+        >
+          <CardContent className="p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center shadow-md shadow-rose-500/20 group-hover:scale-105 transition-transform shrink-0">
+                  <CalendarDays className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-white group-hover:text-rose-600 transition-colors">
+                      Events
+                    </h4>
+                    <Badge className="bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border-none text-[9px] font-extrabold">
+                      2 Upcoming
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                    Celebrations, today&apos;s schedule &amp; venue booking
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
+            </div>
+
+            <div className="bg-white/90 dark:bg-slate-800/90 rounded-xl p-2.5 flex items-center justify-between border border-rose-100 dark:border-rose-900/30 text-xs">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-3.5 h-3.5 text-rose-500" />
+                <span className="font-bold text-gray-800 dark:text-gray-200 truncate max-w-[180px]">
+                  Diwali Celebration
+                </span>
+              </div>
+              <Badge variant="outline" className="text-[9px] font-bold text-rose-600 border-rose-300">
+                Oct 22
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. My Profile Card */}
         <Card
           onClick={() => navigate('/profile')}
           className="rounded-3xl border border-indigo-200 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50/60 via-white to-purple-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all cursor-pointer group"

@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { api } from '@/lib/api'
+import { ENDPOINTS } from '@/lib/api/endpoints'
 import { useAuthStore, type ResidentUser } from '@/lib/stores/auth-store'
 import { toast } from 'sonner'
 
@@ -89,6 +90,21 @@ export interface DetailedResidentProfile extends ResidentUser {
   familyMembers?: FamilyMember[]
 }
 
+const formatSlotName = (slot: string) => {
+  if (!slot) return ''
+  const s = slot.toLowerCase()
+  if (s === 'breakfast') return 'Break Fast'
+  if (s === 'lunch') return 'Lunch'
+  if (s === 'snacks') return 'Evening Snacks'
+  if (s === 'dinner') return 'Dinner'
+  if (s.includes('breakfast')) return 'Break Fast'
+  if (s.includes('lunch')) return 'Lunch'
+  if (s.includes('snack')) return 'Evening Snacks'
+  if (s.includes('dinner')) return 'Dinner'
+  if (s.includes('midnight') || s.includes('mid_night')) return 'Mid Night Snacks'
+  return slot
+}
+
 export default function ProfilePage() {
   const localResident = useAuthStore((state) => state.resident)
   const [profile, setProfile] = useState<DetailedResidentProfile | null>(localResident || null)
@@ -97,7 +113,7 @@ export default function ProfilePage() {
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await api.get('/mobile/l1/resident/auth/profile')
+      const res = await api.get(ENDPOINTS.auth.profile)
       if (res.data?.success && res.data?.data) {
         setProfile(res.data.data)
       } else {
@@ -269,15 +285,15 @@ export default function ProfilePage() {
                 </div>
 
                 {resFoodPkg.includedMealSlots && resFoodPkg.includedMealSlots.length > 0 ? (
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <span className="text-[10px] font-bold text-muted-foreground">Included:</span>
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    <span className="text-[10px] font-bold text-muted-foreground shrink-0">Included:</span>
                     {resFoodPkg.includedMealSlots.map((slot) => (
                       <Badge
                         key={slot}
                         variant="secondary"
-                        className="text-[9px] font-extrabold capitalize bg-white dark:bg-slate-800 border"
+                        className="text-[9px] font-extrabold capitalize bg-white dark:bg-slate-800 border shrink-0"
                       >
-                        {slot}
+                        {formatSlotName(slot)}
                       </Badge>
                     ))}
                   </div>
@@ -363,6 +379,106 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Primary Resident Information (For Family Member Logins) */}
+      {profile?.primaryResident && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider px-1 flex items-center gap-1.5">
+            <User className="w-3.5 h-3.5 text-[#005390]" />
+            Primary Resident Details
+          </h3>
+
+          <Card className="rounded-2xl border-gray-200 dark:border-slate-800 shadow-xs overflow-hidden bg-blue-50/20 dark:bg-slate-900/40">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#005390] text-white font-extrabold text-xs flex items-center justify-center">
+                    {profile.primaryResident.firstName?.charAt(0).toUpperCase() || 'P'}
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-gray-900 dark:text-gray-100">
+                      {profile.primaryResident.firstName} {profile.primaryResident.lastName || ''}
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground font-semibold">Primary Resident</p>
+                  </div>
+                </div>
+                <Badge className="bg-blue-100 text-[#005390] border border-blue-200 text-[9px] font-extrabold uppercase">
+                  Head of Household
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs border-b border-gray-100 dark:border-slate-800 pb-2.5">
+                <div>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase block">Phone</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5 mt-0.5">
+                    <Phone className="w-3 h-3 text-blue-500 shrink-0" />
+                    {profile.primaryResident.phone || 'N/A'}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[10px] text-muted-foreground font-bold uppercase block">Email</span>
+                  <span className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5 mt-0.5 truncate">
+                    <Mail className="w-3 h-3 text-blue-500 shrink-0" />
+                    <span className="truncate">{profile.primaryResident.email || 'N/A'}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Primary Resident Food Package Status */}
+              <div className="pt-1 text-[11px] space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <Utensils className="w-3 h-3 text-[#005390]" />
+                    Primary Food Package:
+                  </span>
+                  {profile.primaryResident.foodPackage ? (
+                    <Badge className="bg-emerald-500 text-white text-[9px] font-extrabold uppercase border-none">
+                      {profile.primaryResident.foodPackage.status || 'Active'}
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-[9px] font-extrabold text-muted-foreground border-gray-300"
+                    >
+                      N/A
+                    </Badge>
+                  )}
+                </div>
+
+                {profile.primaryResident.foodPackage && (
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 mt-1 space-y-1">
+                    <div className="font-extrabold text-xs text-gray-900 dark:text-white flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
+                      {profile.primaryResident.foodPackage.name || 'Food Package'}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Dietary:{' '}
+                      <strong className="text-gray-800 dark:text-gray-200">
+                        {profile.primaryResident.foodPackage.dietaryType || 'Standard'}
+                      </strong>
+                    </div>
+                    {profile.primaryResident.foodPackage.includedMealSlots &&
+                      profile.primaryResident.foodPackage.includedMealSlots.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {profile.primaryResident.foodPackage.includedMealSlots.map((slot) => (
+                            <Badge
+                              key={slot}
+                              variant="secondary"
+                              className="text-[8px] font-extrabold capitalize bg-gray-100 dark:bg-slate-700"
+                            >
+                              {formatSlotName(slot)}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Family Members Section */}
       <div className="space-y-2">
@@ -450,25 +566,70 @@ export default function ProfilePage() {
                     </div>
 
                     {/* Family Member Food Package Status */}
-                    <div className="pt-2 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-[11px]">
-                      <span className="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                        <Utensils className="w-3 h-3 text-[#005390]" />
-                        Food Package:
-                      </span>
-                      {fmPkg ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-extrabold text-[#005390] text-[10px]">{fmPkg.name}</span>
-                          <Badge className="bg-emerald-500 text-white text-[8px] font-extrabold py-0 px-1 border-none">
-                            ACTIVE
+                    <div className="pt-2 border-t border-gray-100 dark:border-slate-800 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                          <Utensils className="w-3 h-3 text-[#005390]" />
+                          Food Package:
+                        </span>
+                        {fmPkg ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-[#005390] text-[10px]">{fmPkg.name}</span>
+                            <Badge className="bg-emerald-500 text-white text-[8px] font-extrabold py-0 px-1 border-none uppercase">
+                              {fmPkg.status || 'ACTIVE'}
+                            </Badge>
+                          </div>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-extrabold text-muted-foreground border-gray-300"
+                          >
+                            N/A
                           </Badge>
+                        )}
+                      </div>
+
+                      {fmPkg && (
+                        <div className="space-y-1.5 bg-gray-50/80 dark:bg-slate-900/50 p-2 rounded-xl border border-gray-100 dark:border-slate-800">
+                          <div className="flex items-center justify-between text-[10px]">
+                            {fmPkg.dietaryType && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold capitalize border ${
+                                  fmPkg.dietaryType.toLowerCase().includes('non')
+                                    ? 'bg-rose-100 text-rose-800 border-rose-300'
+                                    : fmPkg.dietaryType.toLowerCase().includes('egg')
+                                      ? 'bg-amber-100 text-amber-800 border-amber-300'
+                                      : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                }`}
+                              >
+                                {fmPkg.dietaryType.replace('_', ' ')}
+                              </span>
+                            )}
+
+                            {fmPkg.startDate && (
+                              <span className="text-muted-foreground text-[9px] font-mono">
+                                Started: {String(fmPkg.startDate).split('T')[0]}
+                              </span>
+                            )}
+                          </div>
+
+                          {fmPkg.includedMealSlots && fmPkg.includedMealSlots.length > 0 ? (
+                            <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                              <span className="text-[9px] font-bold text-muted-foreground">Included Meals:</span>
+                              {fmPkg.includedMealSlots.map((slot) => (
+                                <Badge
+                                  key={slot}
+                                  variant="secondary"
+                                  className="text-[8px] font-extrabold capitalize bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-1.5 py-0"
+                                >
+                                  {formatSlotName(slot)}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground block italic">Included Meals: None</span>
+                          )}
                         </div>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] font-extrabold text-muted-foreground border-gray-300"
-                        >
-                          N/A
-                        </Badge>
                       )}
                     </div>
                   </CardContent>

@@ -1,4 +1,4 @@
-import { Activity, LogOut, Moon, Sun, Home, User } from 'lucide-react'
+import { Activity, LogOut, Moon, Sun, Home, User, Ticket } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Navigate, NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -71,7 +71,7 @@ export default function MobileLayout() {
 
         {/* Bottom Mobile Tab Bar */}
         <nav className="z-20 border-t bg-background/95 backdrop-blur px-3 py-2 shrink-0">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <NavLink
               to="/overview"
               className={({ isActive }) =>
@@ -84,6 +84,20 @@ export default function MobileLayout() {
             >
               <Home className="w-4 h-4 mb-0.5" />
               <span>Overview</span>
+            </NavLink>
+
+            <NavLink
+              to="/tickets"
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center py-1.5 rounded-2xl text-[10px] font-black transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-[#005390] text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`
+              }
+            >
+              <Ticket className="w-4 h-4 mb-0.5" />
+              <span>Tickets</span>
             </NavLink>
 
             <NavLink
