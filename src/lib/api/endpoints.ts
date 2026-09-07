@@ -1,6 +1,6 @@
 import { env } from '@/lib/env'
 
-export const BASE_URL = env.VITE_API_URL || 'http://localhost:4000/api/v1'
+export const BASE_URL = env.VITE_API_URL || 'http://localhost:3002/api/v1'
 
 export const ENDPOINTS = {
   auth: {
