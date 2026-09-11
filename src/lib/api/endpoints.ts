@@ -4,13 +4,15 @@ export const BASE_URL = env.VITE_API_URL || 'http://localhost:3002/api/v1'
 
 export const ENDPOINTS = {
   auth: {
-    login: `${BASE_URL}/mobile/l1/resident/auth/login`,
-    profile: `${BASE_URL}/mobile/l1/resident/auth/profile`,
+    login: `${BASE_URL}/mobile/l1/auth/login`,
+    profile: `${BASE_URL}/mobile/l1/auth/profile`,
+    details: `${BASE_URL}/mobile/l1/resident/details`,
   },
   tickets: {
     list: `${BASE_URL}/mobile/l1/tickets`,
     create: `${BASE_URL}/mobile/l1/tickets`,
     departments: `${BASE_URL}/mobile/l1/tickets/departments`,
+    detail: (id: string) => `${BASE_URL}/mobile/l1/tickets/${id}`,
     updateTat: (id: string) => `${BASE_URL}/mobile/l1/tickets/${id}/tat`,
     escalate: (id: string) => `${BASE_URL}/mobile/l1/tickets/${id}/escalate`,
   },
@@ -28,16 +30,16 @@ export const ENDPOINTS = {
   venues: {
     list: (minOccupancy?: number) =>
       minOccupancy != null
-        ? `${BASE_URL}/mobile/l1/venues?minOccupancy=${encodeURIComponent(String(minOccupancy))}`
-        : `${BASE_URL}/mobile/l1/venues`,
-    detail: (id: string) => `${BASE_URL}/mobile/l1/venues/${id}`,
+        ? `${BASE_URL}/mobile/l1/events/venues?minOccupancy=${encodeURIComponent(String(minOccupancy))}`
+        : `${BASE_URL}/mobile/l1/events/venues`,
+    detail: (id: string) => `${BASE_URL}/mobile/l1/events/venues/${id}`,
     availability: (venueId: string, startDate: string, endDate: string) =>
-      `${BASE_URL}/mobile/l1/venues/availability?venueId=${encodeURIComponent(venueId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
+      `${BASE_URL}/mobile/l1/events/venues/availability?venueId=${encodeURIComponent(venueId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`,
   },
   eventRequests: {
-    list: `${BASE_URL}/mobile/l1/event-requests`,
-    detail: (id: string) => `${BASE_URL}/mobile/l1/event-requests/${id}`,
-    create: `${BASE_URL}/mobile/l1/event-requests`,
+    list: `${BASE_URL}/mobile/l1/events/event-requests`,
+    detail: (id: string) => `${BASE_URL}/mobile/l1/events/event-requests/${id}`,
+    create: `${BASE_URL}/mobile/l1/events/event-requests`,
   },
   l3: {
     assignedDeliveries: (locId?: string) =>
