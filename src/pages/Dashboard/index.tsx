@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Wrench,
   X,
+  Stethoscope,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -87,7 +88,7 @@ export default function Dashboard() {
           <h3 className="text-xs font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">
             Quick Access Services
           </h3>
-          <span className="text-[10px] font-bold text-muted-foreground">5 Core Modules</span>
+          <span className="text-[10px] font-bold text-muted-foreground">6 Core Modules</span>
         </div>
 
         {/* 1. Food & Beverage (FnB) Card */}
@@ -264,7 +265,50 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* 5. My Profile Card */}
+        {/* 5. Medical Card */}
+        <Card
+          onClick={() => navigate('/medical')}
+          className="rounded-3xl border border-teal-200 dark:border-teal-900/40 bg-gradient-to-br from-teal-50/60 via-white to-cyan-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-teal-400 transition-all cursor-pointer group"
+        >
+          <CardContent className="p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 to-cyan-500 text-white flex items-center justify-center shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform shrink-0">
+                  <Stethoscope className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-white group-hover:text-teal-600 transition-colors">
+                      Medical
+                    </h4>
+                    <Badge className="bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300 border-none text-[9px] font-extrabold">
+                      Appointments
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                    In-house &amp; visiting doctors for you &amp; family
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-teal-600 group-hover:translate-x-1 transition-all" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white/90 dark:bg-slate-800/90 rounded-xl p-2.5 flex items-center gap-2 border border-teal-100 dark:border-teal-900/30 text-xs">
+                <Stethoscope className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                <span className="font-bold text-gray-800 dark:text-gray-200 truncate">In-house Dr</span>
+              </div>
+              <div className="bg-white/90 dark:bg-slate-800/90 rounded-xl p-2.5 flex items-center justify-between border border-teal-100 dark:border-teal-900/30 text-xs gap-1">
+                <span className="font-bold text-gray-800 dark:text-gray-200 truncate">Visiting Dr</span>
+                <span className="text-[9px] font-bold text-teal-600 flex items-center gap-1 shrink-0">
+                  <CheckCircle2 className="w-3 h-3 text-teal-500" /> Book
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 6. My Profile Card */}
         <Card
           onClick={() => navigate('/profile')}
           className="rounded-3xl border border-indigo-200 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50/60 via-white to-purple-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all cursor-pointer group"

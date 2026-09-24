@@ -9,6 +9,9 @@ import EventBookingPage from '@/pages/Events/book/EventBooking'
 import EventRequestDetailPage from '@/pages/Events/book/EventRequestDetail'
 import FnbPage from '@/pages/Fnb'
 import Login from '@/pages/Login'
+import MedicalPage from '@/pages/Medical'
+import AppointmentDetailPage from '@/pages/Medical/AppointmentDetail'
+import DiagnosisPage from '@/pages/Medical/Diagnosis'
 import ProfilePage from '@/pages/Profile'
 import GatePage from '@/pages/Gate'
 import TicketsPage from '@/pages/Tickets'
@@ -29,6 +32,9 @@ export default function MobileRouter() {
         <Route path="events/book/confirm" element={<EventBookingPage />} />
         <Route path="events/bookings/:requestId" element={<EventRequestDetailPage />} />
         <Route path="events/:eventId" element={<EventDetailPage />} />
+        <Route path="medical" element={<MedicalPage />} />
+        <Route path="medical/appointments/:shiftEmployeeDateId" element={<AppointmentDetailPage />} />
+        <Route path="medical/bookings/:appointmentId/diagnosis" element={<DiagnosisPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/overview" replace />} />

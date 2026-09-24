@@ -41,6 +41,16 @@ export const ENDPOINTS = {
     detail: (id: string) => `${BASE_URL}/mobile/l1/events/event-requests/${id}`,
     create: `${BASE_URL}/mobile/l1/events/event-requests`,
   },
+  medical: {
+    appointments: {
+      list: `${BASE_URL}/mobile/l1/medical/appointments`,
+      inhouse: `${BASE_URL}/mobile/l1/medical/appointments/inhouse`,
+      myBookings: `${BASE_URL}/mobile/l1/medical/appointments/my-bookings`,
+      bookingDiagnosis: (id: string) => `${BASE_URL}/mobile/l1/medical/appointments/bookings/${id}/diagnosis`,
+      detail: (id: string) => `${BASE_URL}/mobile/l1/medical/appointments/${id}`,
+      book: (id: string) => `${BASE_URL}/mobile/l1/medical/appointments/${id}/book`,
+    },
+  },
   l3: {
     assignedDeliveries: (locId?: string) =>
       `${BASE_URL}/mobile/l3/fnb/assigned-deliveries${locId ? `?locId=${encodeURIComponent(locId)}` : ''}`,
