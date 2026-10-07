@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import AdCarousel from '@/components/feedback/AdCarousel'
 import { toast } from 'sonner'
 
 export default function Dashboard() {
@@ -60,6 +61,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5 pb-8 select-none font-sans">
+      {/* Property advertisements */}
+      <AdCarousel />
+
       {/* Top Welcome Header Banner */}
       <div className="bg-gradient-to-r from-[#005390] via-blue-700 to-indigo-800 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden">
         <div className="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>

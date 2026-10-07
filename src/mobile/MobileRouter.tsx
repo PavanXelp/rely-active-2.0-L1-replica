@@ -15,6 +15,8 @@ import DiagnosisPage from '@/pages/Medical/Diagnosis'
 import ProfilePage from '@/pages/Profile'
 import GatePage from '@/pages/Gate'
 import TicketsPage from '@/pages/Tickets'
+import NotificationsPage from '@/pages/Notifications'
+import FeedbackFormPage from '@/pages/Notifications/FeedbackForm'
 
 export default function MobileRouter() {
   return (
@@ -35,6 +37,8 @@ export default function MobileRouter() {
         <Route path="medical" element={<MedicalPage />} />
         <Route path="medical/appointments/:shiftEmployeeDateId" element={<AppointmentDetailPage />} />
         <Route path="medical/bookings/:appointmentId/diagnosis" element={<DiagnosisPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notifications/feedback/:id" element={<FeedbackFormPage />} />
         <Route path="profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/overview" replace />} />

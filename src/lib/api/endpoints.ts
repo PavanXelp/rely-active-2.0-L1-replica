@@ -51,6 +51,15 @@ export const ENDPOINTS = {
       book: (id: string) => `${BASE_URL}/mobile/l1/medical/appointments/${id}/book`,
     },
   },
+  advertisements: {
+    list: `${BASE_URL}/mobile/l1/advertisements`,
+  },
+  feedbackForms: {
+    list: (status: 'PENDING' | 'SUBMITTED') =>
+      `${BASE_URL}/mobile/l1/feedback-forms?status=${encodeURIComponent(status)}`,
+    detail: (id: string) => `${BASE_URL}/mobile/l1/feedback-forms/${encodeURIComponent(id)}`,
+    submit: (id: string) => `${BASE_URL}/mobile/l1/feedback-forms/${encodeURIComponent(id)}/submit`,
+  },
   l3: {
     assignedDeliveries: (locId?: string) =>
       `${BASE_URL}/mobile/l3/fnb/assigned-deliveries${locId ? `?locId=${encodeURIComponent(locId)}` : ''}`,

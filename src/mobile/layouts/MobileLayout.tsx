@@ -1,7 +1,8 @@
-import { Activity, LogOut, Moon, Sun, Home, User, Ticket } from 'lucide-react'
+import { Activity, Bell, LogOut, Moon, Sun, Home, User, Ticket } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Navigate, NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { usePendingFeedbackCount } from '@/hooks/useFeedback'
 import { useAuthStore } from '@/lib/stores/auth-store'
 
 export default function MobileLayout() {
@@ -9,6 +10,7 @@ export default function MobileLayout() {
   const signOut = useAuthStore((state) => state.signOut)
   const resident = useAuthStore((state) => state.resident)
   const { resolvedTheme, setTheme } = useTheme()
+  const pendingFeedback = usePendingFeedbackCount()
 
   if (!token) return <Navigate to="/login" replace />
 
@@ -71,7 +73,7 @@ export default function MobileLayout() {
 
         {/* Bottom Mobile Tab Bar */}
         <nav className="z-20 border-t bg-background/95 backdrop-blur px-3 py-2 shrink-0">
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5">
             <NavLink
               to="/overview"
               className={({ isActive }) =>
@@ -98,6 +100,28 @@ export default function MobileLayout() {
             >
               <Ticket className="w-4 h-4 mb-0.5" />
               <span>Tickets</span>
+            </NavLink>
+
+            <NavLink
+              to="/notifications"
+              className={({ isActive }) =>
+                `relative flex flex-col items-center justify-center py-1.5 rounded-2xl text-[10px] font-black transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-[#005390] text-white shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`
+              }
+            >
+              <Bell className="w-4 h-4 mb-0.5" />
+              <span>Notifications</span>
+              {pendingFeedback > 0 && (
+                <span
+                  aria-label={`${pendingFeedback} pending`}
+                  className="absolute top-0.5 right-2 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center ring-2 ring-background"
+                >
+                  {pendingFeedback > 9 ? '9+' : pendingFeedback}
+                </span>
+              )}
             </NavLink>
 
             <NavLink
