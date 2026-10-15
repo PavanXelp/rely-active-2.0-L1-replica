@@ -34,20 +34,10 @@ export default function AppointmentDetailPage() {
   const [selectedSlot, setSelectedSlot] = useState('')
   const [slotError, setSlotError] = useState<string | undefined>()
 
-  const loadDetail = async () => {
-    if (!shiftEmployeeDateId) return
-    try {
-      setLoading(true)
-      const data = await appointmentMobileService.getAppointmentDetail(shiftEmployeeDateId)
-      setDetail(data)
-      setSelectedSlot('')
-    } catch (err) {
-      console.error('Failed to load appointment detail:', err)
-      toast.error('Failed to load doctor appointment')
-      setDetail(null)
-    } finally {
-      setLoading(false)
-    }
+  const handleBack = () => {
+    const historyIdx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (historyIdx > 0) navigate(-1)
+    else navigate('/medical/book')
   }
 
   useEffect(() => {
@@ -110,9 +100,7 @@ export default function AppointmentDetailPage() {
       })
       if (res?.success) {
         toast.success(res.message || 'Appointment booked successfully')
-        setSelectedSlot('')
-        setSlotError(undefined)
-        await loadDetail()
+        navigate('/medical?tab=booking')
       } else {
         toast.error(res?.message || 'Failed to book appointment')
       }
@@ -134,7 +122,7 @@ export default function AppointmentDetailPage() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/medical')}
+              onClick={handleBack}
               className="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -156,7 +144,7 @@ export default function AppointmentDetailPage() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => navigate('/medical')}
+              onClick={handleBack}
               className="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -167,8 +155,8 @@ export default function AppointmentDetailPage() {
         <Card className="rounded-3xl border border-border/60 p-8 text-center space-y-2">
           <Stethoscope className="w-10 h-10 mx-auto text-muted-foreground/40" />
           <h4 className="font-bold text-sm">Doctor Shift Not Found</h4>
-          <Button onClick={() => navigate('/medical')} className="mt-2 rounded-2xl bg-[#005390]">
-            Back to Medical
+          <Button onClick={handleBack} className="mt-2 rounded-2xl bg-[#005390]">
+            Back to Doctors
           </Button>
         </Card>
       </div>
@@ -181,7 +169,7 @@ export default function AppointmentDetailPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate('/medical')}
+            onClick={handleBack}
             className="w-9 h-9 rounded-2xl bg-white/10 flex items-center justify-center cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />

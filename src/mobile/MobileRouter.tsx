@@ -11,6 +11,8 @@ import FnbPage from '@/pages/Fnb'
 import Login from '@/pages/Login'
 import MedicalPage from '@/pages/Medical'
 import AppointmentDetailPage from '@/pages/Medical/AppointmentDetail'
+import AttendedBookingsPage from '@/pages/Medical/AttendedBookings'
+import BookAppointmentPage from '@/pages/Medical/BookAppointment'
 import DiagnosisPage from '@/pages/Medical/Diagnosis'
 import ProfilePage from '@/pages/Profile'
 import GatePage from '@/pages/Gate'
@@ -35,6 +37,8 @@ export default function MobileRouter() {
         <Route path="events/bookings/:requestId" element={<EventRequestDetailPage />} />
         <Route path="events/:eventId" element={<EventDetailPage />} />
         <Route path="medical" element={<MedicalPage />} />
+        <Route path="medical/book" element={<BookAppointmentPage />} />
+        <Route path="medical/attended" element={<AttendedBookingsPage />} />
         <Route path="medical/appointments/:shiftEmployeeDateId" element={<AppointmentDetailPage />} />
         <Route path="medical/bookings/:appointmentId/diagnosis" element={<DiagnosisPage />} />
         <Route path="notifications" element={<NotificationsPage />} />

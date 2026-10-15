@@ -3,6 +3,25 @@ import type { ResidentInsulin } from './insulin'
 
 export type DiagnosisStatus = 'DRAFT' | 'COMPLETED'
 
+/** Resident-facing status: consultant fields are only returned when COMPLETED. */
+export type ResidentDiagnosisStatus = 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED'
+
+export type DiagnosisCondition = 'CRITICAL' | 'STABLE' | 'RECOVERING' | 'GOOD'
+
+export type DiagnosisFileType = 'IMAGE' | 'PDF' | 'AUDIO'
+
+export interface DiagnosisFile {
+  id: string
+  url: string
+  key: string
+  name: string
+  contentType: string
+  size: number
+  fileType: DiagnosisFileType
+  uploadedAt: string
+  uploadedByUserId: string
+}
+
 export interface ConsultantAllergy {
   id: string
   name: string
@@ -21,26 +40,29 @@ export interface ConsultantVital {
 }
 
 export interface AppointmentDiagnosis {
-  id: string | null
-  appointmentId: string
-  residentId: string
-  locationId: string
-  doctorId: string
+  diagnosisStatus: ResidentDiagnosisStatus
+  id?: string | null
+  appointmentId: string | null
+  residentId?: string
+  locationId?: string
+  doctorId?: string
   allergies: ConsultantAllergy[]
   vitals: ConsultantVital[]
   medications: ResidentMedication[]
   insulin: ResidentInsulin[]
-  note: string | null
-  status: DiagnosisStatus
-  completedAt: string | null
-  createdAt: string | null
-  updatedAt: string | null
-  /** Appointment meta returned by L1 History GET */
+  note?: string | null
+  attachments: DiagnosisFile[]
+  voiceNotes: DiagnosisFile[]
+  condition?: DiagnosisCondition | null
+  status?: DiagnosisStatus
+  completedAt?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
   doctorName?: string
-  appointmentDate?: string
-  slotTimeRange?: string
+  appointmentDate?: string | null
+  slotTimeRange?: string | null
   memberName?: string
   memberRelation?: string
-  appointmentStatus?: string
+  appointmentStatus?: string | null
   attendedAt?: string | null
 }

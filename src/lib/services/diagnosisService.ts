@@ -6,10 +6,13 @@ function normalizeDiagnosis(data: AppointmentDiagnosis | null): AppointmentDiagn
   if (!data) return null
   return {
     ...data,
+    diagnosisStatus: data.diagnosisStatus || 'NOT_STARTED',
     allergies: Array.isArray(data.allergies) ? data.allergies : [],
     vitals: Array.isArray(data.vitals) ? data.vitals : [],
     medications: Array.isArray(data.medications) ? data.medications : [],
     insulin: Array.isArray(data.insulin) ? data.insulin : [],
+    attachments: Array.isArray(data.attachments) ? data.attachments : [],
+    voiceNotes: Array.isArray(data.voiceNotes) ? data.voiceNotes : [],
   }
 }
 

@@ -44,11 +44,14 @@ export const ENDPOINTS = {
   medical: {
     appointments: {
       list: `${BASE_URL}/mobile/l1/medical/appointments`,
-      inhouse: `${BASE_URL}/mobile/l1/medical/appointments/inhouse`,
       myBookings: `${BASE_URL}/mobile/l1/medical/appointments/my-bookings`,
       bookingDiagnosis: (id: string) => `${BASE_URL}/mobile/l1/medical/appointments/bookings/${id}/diagnosis`,
       detail: (id: string) => `${BASE_URL}/mobile/l1/medical/appointments/${id}`,
       book: (id: string) => `${BASE_URL}/mobile/l1/medical/appointments/${id}/book`,
+    },
+    history: {
+      latest: `${BASE_URL}/mobile/l1/medical/history`,
+      byDate: (date: string) => `${BASE_URL}/mobile/l1/medical/history/diagnoses?date=${encodeURIComponent(date)}`,
     },
   },
   advertisements: {

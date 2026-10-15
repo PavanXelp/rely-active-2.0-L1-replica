@@ -31,16 +31,6 @@ export interface L1AppointmentListItem {
   isFullyBooked: boolean
 }
 
-export interface L1InhouseAppointmentListItem {
-  shiftEmployeeDateId: string
-  date: string
-  status: string
-  doctor: L1AppointmentDoctor | null
-  shift: { id: string; name: string; startTime: string; endTime: string } | null
-  effectiveTime: string | null
-  scopeLabel?: string | null
-}
-
 export interface L1AppointmentSlot {
   slotTimeRange: string
   isBooked: boolean
@@ -84,6 +74,7 @@ export interface L1MyBooking {
   slotTimeRange: string
   status: AppointmentStatus
   bookedAt: string
+  attendedAt?: string | null
   notes?: string | null
   familyMemberId?: string | null
   memberName: string
