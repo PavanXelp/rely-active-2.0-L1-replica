@@ -57,6 +57,14 @@ export const ENDPOINTS = {
   advertisements: {
     list: `${BASE_URL}/mobile/l1/advertisements`,
   },
+  bills: {
+    list: (page = 1) => `${BASE_URL}/mobile/l1/billing/invoices?page=${page}`,
+    detail: (id: string) => `${BASE_URL}/mobile/l1/billing/invoices/${encodeURIComponent(id)}`,
+    pdf: (id: string, receiptId?: string) =>
+      `${BASE_URL}/mobile/l1/billing/invoices/${encodeURIComponent(id)}/pdf${
+        receiptId ? `?type=RECEIPT&receiptId=${encodeURIComponent(receiptId)}` : ''
+      }`,
+  },
   feedbackForms: {
     list: (status: 'PENDING' | 'SUBMITTED') =>
       `${BASE_URL}/mobile/l1/feedback-forms?status=${encodeURIComponent(status)}`,

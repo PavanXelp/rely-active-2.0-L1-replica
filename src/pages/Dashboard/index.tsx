@@ -15,6 +15,7 @@ import {
   Wrench,
   X,
   Stethoscope,
+  ReceiptIndianRupee,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -309,6 +310,29 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* My Bills Card */}
+        <Card
+          onClick={() => navigate('/bills')}
+          className="rounded-3xl border border-sky-200 dark:border-sky-900/40 bg-gradient-to-br from-sky-50/60 via-white to-blue-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-sky-400 transition-all cursor-pointer group"
+        >
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-[#005390] to-sky-500 text-white flex items-center justify-center shadow-md shadow-sky-500/20 group-hover:scale-105 transition-transform shrink-0">
+                <ReceiptIndianRupee className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-gray-900 dark:text-white group-hover:text-sky-700 transition-colors">
+                  My Bills
+                </h4>
+                <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                  Invoices, payments &amp; receipts for your flat
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-sky-700 group-hover:translate-x-1 transition-all" />
           </CardContent>
         </Card>
 
