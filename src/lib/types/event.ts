@@ -60,6 +60,8 @@ export type L1EventRegistration = {
 
 export type L1EventDetail = L1Event & {
   reservationPerFlat?: number | null
+  /** Resident plus residing family members: the most seats the household can reserve. */
+  householdSize?: number
   occupancy?: number
   maxCapacity?: number | null
   entryFee?: number | null

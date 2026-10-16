@@ -95,7 +95,8 @@ export default function EventDetailPage() {
 
   const maxSeats = useMemo(() => {
     if (!event) return 1
-    const perFlat = event.reservationPerFlat && event.reservationPerFlat > 0 ? event.reservationPerFlat : 1
+    const flatLimit = event.reservationPerFlat && event.reservationPerFlat > 0 ? event.reservationPerFlat : 1
+    const perFlat = Math.max(1, Math.min(flatLimit, event.householdSize ?? flatLimit))
     const available = event.capacity.availableSpots
     if (available === null) return perFlat
     if (available <= 0) return 1
@@ -316,7 +317,12 @@ export default function EventDetailPage() {
                 >
                   <Plus className="w-4 h-4" />
                 </button>
-                <span className="text-[11px] text-muted-foreground font-semibold ml-1">Max {maxSeats} per flat</span>
+                <span className="text-[11px] text-muted-foreground font-semibold ml-1">
+                  Max {maxSeats}
+                  {event.householdSize !== undefined && maxSeats === event.householdSize
+                    ? ` (${event.householdSize === 1 ? 'only you' : `household of ${event.householdSize}`})`
+                    : ' per flat'}
+                </span>
               </div>
             ) : (
               <p className="text-xs text-muted-foreground font-medium">
