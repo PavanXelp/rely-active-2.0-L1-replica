@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Utensils,
@@ -16,6 +16,7 @@ import {
   X,
   Stethoscope,
   ReceiptIndianRupee,
+  Building2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,6 +24,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import AdCarousel from '@/components/feedback/AdCarousel'
+import { amenityMobileService } from '@/lib/services/amenityService'
 import { toast } from 'sonner'
 
 export default function Dashboard() {
@@ -37,6 +39,32 @@ export default function Dashboard() {
   const [ticketsList, setTicketsList] = useState([
     { id: 'TCK-101', title: 'A/C Filter Cleaning', category: 'Maintenance', status: 'In Progress', date: 'Today' },
   ])
+  const [amenitiesOverview, setAmenitiesOverview] = useState({ total: 0, slotBased: 0, myBookings: 0 })
+
+  useEffect(() => {
+    let ignore = false
+    const loadAmenitiesOverview = async () => {
+      try {
+        const [amenities, bookings] = await Promise.all([
+          amenityMobileService.listAmenities(),
+          amenityMobileService.getMyAmenityBookings({ status: 'BOOKED', limit: 100 }),
+        ])
+        if (ignore) return
+        const slotBased = amenities.filter((item) => item.slotBookable).length
+        setAmenitiesOverview({
+          total: amenities.length,
+          slotBased,
+          myBookings: bookings.length,
+        })
+      } catch (error) {
+        console.error('Failed to load amenities overview:', error)
+      }
+    }
+    void loadAmenitiesOverview()
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const todayFormatted = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
@@ -93,7 +121,7 @@ export default function Dashboard() {
           <h3 className="text-xs font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider">
             Quick Access Services
           </h3>
-          <span className="text-[10px] font-bold text-muted-foreground">6 Core Modules</span>
+          <span className="text-[10px] font-bold text-muted-foreground">7 Core Modules</span>
         </div>
 
         {/* 1. Food & Beverage (FnB) Card */}
@@ -228,7 +256,48 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* 4. Events Card */}
+        {/* 4. Amenities Card */}
+        <Card
+          onClick={() => navigate('/amenities')}
+          className="rounded-3xl border border-cyan-200 dark:border-cyan-900/40 bg-gradient-to-br from-cyan-50/60 via-white to-sky-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-cyan-400 transition-all cursor-pointer group"
+        >
+          <CardContent className="p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-cyan-500 to-sky-500 text-white flex items-center justify-center shadow-md shadow-cyan-500/20 group-hover:scale-105 transition-transform shrink-0">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-white group-hover:text-cyan-700 transition-colors">
+                      All Amenities
+                    </h4>
+                    <Badge className="bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border-none text-[9px] font-extrabold">
+                      {amenitiesOverview.total}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                    Browse all amenities and book slot-based services
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-cyan-700 group-hover:translate-x-1 transition-all" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-white/90 dark:bg-slate-800/90 rounded-xl p-2.5 border border-cyan-100 dark:border-cyan-900/30 text-xs">
+                <p className="text-[10px] text-muted-foreground font-semibold">Slot-based</p>
+                <p className="text-sm font-black text-cyan-700 dark:text-cyan-300">{amenitiesOverview.slotBased}</p>
+              </div>
+              <div className="bg-white/90 dark:bg-slate-800/90 rounded-xl p-2.5 border border-cyan-100 dark:border-cyan-900/30 text-xs">
+                <p className="text-[10px] text-muted-foreground font-semibold">My bookings</p>
+                <p className="text-sm font-black text-cyan-700 dark:text-cyan-300">{amenitiesOverview.myBookings}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. Events Card */}
         <Card
           onClick={() => navigate('/events')}
           className="rounded-3xl border border-rose-200 dark:border-rose-900/40 bg-gradient-to-br from-rose-50/60 via-white to-pink-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-rose-400 transition-all cursor-pointer group"
@@ -270,7 +339,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* 5. Medical Card */}
+        {/* 6. Medical Card */}
         <Card
           onClick={() => navigate('/medical')}
           className="rounded-3xl border border-teal-200 dark:border-teal-900/40 bg-gradient-to-br from-teal-50/60 via-white to-cyan-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-teal-400 transition-all cursor-pointer group"
@@ -336,7 +405,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* 6. My Profile Card */}
+        {/* 7. My Profile Card */}
         <Card
           onClick={() => navigate('/profile')}
           className="rounded-3xl border border-indigo-200 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50/60 via-white to-purple-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-indigo-400 transition-all cursor-pointer group"

@@ -54,6 +54,15 @@ export const ENDPOINTS = {
       byDate: (date: string) => `${BASE_URL}/mobile/l1/medical/history/diagnoses?date=${encodeURIComponent(date)}`,
     },
   },
+  amenities: {
+    list: `${BASE_URL}/mobile/l1/amenities`,
+    myBookings: `${BASE_URL}/mobile/l1/amenities/my-bookings`,
+    slots: (amenityId: string, date: string) =>
+      `${BASE_URL}/mobile/l1/amenities/${encodeURIComponent(amenityId)}/slots?date=${encodeURIComponent(date)}`,
+    bookings: (amenityId: string) => `${BASE_URL}/mobile/l1/amenities/${encodeURIComponent(amenityId)}/bookings`,
+    booking: (amenityId: string, bookingId: string) =>
+      `${BASE_URL}/mobile/l1/amenities/${encodeURIComponent(amenityId)}/bookings/${encodeURIComponent(bookingId)}`,
+  },
   advertisements: {
     list: `${BASE_URL}/mobile/l1/advertisements`,
   },
