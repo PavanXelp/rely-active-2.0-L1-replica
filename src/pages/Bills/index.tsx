@@ -33,7 +33,8 @@ const STATUS: Partial<Record<BillStatus, { label: string; className: string }>> 
 /** Owed now: unpaid bills whose balance hasn't moved to a later bill. */
 const isOpen = (bill: Bill) => ['PENDING', 'PARTIALLY_PAID', 'OVERDUE'].includes(bill.status)
 
-const BillCard = ({ bill }: { bill: Bill }) => {
+/** `oldFlat`: a bill from the flat the household lived in before; it is paid with this flat's bills. */
+const BillCard = ({ bill, oldFlat = false }: { bill: Bill; oldFlat?: boolean }) => {
   const [expanded, setExpanded] = useState(false)
   const [opening, setOpening] = useState<string | null>(null)
   const status = STATUS[bill.status] ?? { label: bill.status, className: 'bg-muted text-muted-foreground' }
@@ -72,6 +73,11 @@ const BillCard = ({ bill }: { bill: Bill }) => {
             {bill.invoiceNumber}
             {bill.dueDate && isOpen(bill) ? ` • due ${day(bill.dueDate)}` : ''}
           </p>
+          {oldFlat && bill.unitNumber && (
+            <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+              Old flat {bill.unitNumber}
+            </span>
+          )}
         </div>
         <div className="text-right">
           <p className="text-sm font-black text-foreground">{inr(bill.discountedAmount)}</p>
@@ -193,7 +199,9 @@ export default function BillsPage() {
   const [page, setPage] = useState(1)
   const { data, isLoading, error } = useBills(page)
   const bills = data?.invoices ?? []
-  const due = bills.filter(isOpen).reduce((sum, b) => sum + b.remainingBalance, 0)
+  const oldFlatBills = data?.fromPreviousFlats ?? []
+  // Unpaid bills of the old flat are owed here too (they move into this flat's next bill).
+  const due = [...bills, ...oldFlatBills].filter(isOpen).reduce((sum, b) => sum + b.remainingBalance, 0)
 
   return (
     <div className="space-y-4 pb-6">
@@ -211,7 +219,7 @@ export default function BillsPage() {
           <Skeleton className="h-20 rounded-3xl" />
           <Skeleton className="h-20 rounded-3xl" />
         </div>
-      ) : bills.length === 0 ? (
+      ) : bills.length === 0 && oldFlatBills.length === 0 ? (
         <div className="flex flex-col items-center rounded-3xl border bg-card p-8 text-center">
           <ReceiptIndianRupee className="mb-2 h-10 w-10 text-muted-foreground" />
           <p className="text-sm font-bold">No bills yet</p>
@@ -229,6 +237,19 @@ export default function BillsPage() {
               <BillCard key={bill.id} bill={bill} />
             ))}
           </div>
+          {oldFlatBills.length > 0 && page === 1 && (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-black text-foreground">From your old flat</h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Unpaid amounts move into this flat&apos;s next bill.
+                </p>
+              </div>
+              {oldFlatBills.map((bill) => (
+                <BillCard key={bill.id} bill={bill} oldFlat />
+              ))}
+            </div>
+          )}
           {(data?.pagination.totalPages ?? 1) > 1 && (
             <div className="flex items-center justify-between text-xs font-semibold">
               <button
