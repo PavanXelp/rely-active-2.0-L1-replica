@@ -20,6 +20,8 @@ import TicketsPage from '@/pages/Tickets'
 import NotificationsPage from '@/pages/Notifications'
 import FeedbackFormPage from '@/pages/Notifications/FeedbackForm'
 import BillsPage from '@/pages/Bills'
+import AmenitiesPage from '@/pages/Amenities'
+import BookAmenityPage from '@/pages/Amenities/BookAmenity'
 
 export default function MobileRouter() {
   return (
@@ -46,6 +48,8 @@ export default function MobileRouter() {
         <Route path="notifications/feedback/:id" element={<FeedbackFormPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="bills" element={<BillsPage />} />
+        <Route path="amenities" element={<AmenitiesPage />} />
+        <Route path="amenities/:amenityId" element={<BookAmenityPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/overview" replace />} />
     </Routes>

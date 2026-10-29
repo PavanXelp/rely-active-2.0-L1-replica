@@ -313,6 +313,29 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Amenities Card */}
+        <Card
+          onClick={() => navigate('/amenities')}
+          className="rounded-3xl border border-amber-200 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/60 via-white to-orange-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 shadow-sm hover:shadow-md hover:border-amber-400 transition-all cursor-pointer group"
+        >
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20 group-hover:scale-105 transition-transform shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-gray-900 dark:text-white group-hover:text-amber-700 transition-colors">
+                  Amenities
+                </h4>
+                <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
+                  Book the pool, hall or a guest suite
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-700 group-hover:translate-x-1 transition-all" />
+          </CardContent>
+        </Card>
+
         {/* My Bills Card */}
         <Card
           onClick={() => navigate('/bills')}

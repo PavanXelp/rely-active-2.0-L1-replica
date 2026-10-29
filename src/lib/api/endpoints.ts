@@ -57,6 +57,15 @@ export const ENDPOINTS = {
   advertisements: {
     list: `${BASE_URL}/mobile/l1/advertisements`,
   },
+  amenities: {
+    list: `${BASE_URL}/mobile/l1/amenities`,
+    slots: (amenityId: string, date: string) =>
+      `${BASE_URL}/mobile/l1/amenities/${encodeURIComponent(amenityId)}/slots?date=${encodeURIComponent(date)}`,
+    book: (amenityId: string) => `${BASE_URL}/mobile/l1/amenities/${encodeURIComponent(amenityId)}/bookings`,
+    cancel: (amenityId: string, bookingId: string) =>
+      `${BASE_URL}/mobile/l1/amenities/${encodeURIComponent(amenityId)}/bookings/${encodeURIComponent(bookingId)}`,
+    myBookings: (from: string) => `${BASE_URL}/mobile/l1/amenities/my-bookings?from=${encodeURIComponent(from)}`,
+  },
   bills: {
     list: (page = 1) => `${BASE_URL}/mobile/l1/billing/invoices?page=${page}`,
     detail: (id: string) => `${BASE_URL}/mobile/l1/billing/invoices/${encodeURIComponent(id)}`,
